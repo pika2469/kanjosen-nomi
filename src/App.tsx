@@ -11,7 +11,7 @@ import { RoulettePage } from '@/pages/RoulettePage'
 import { CardHandPage } from '@/pages/CardHandPage'
 import { ResultPage } from '@/pages/ResultPage'
 import { SettingsPage } from '@/pages/SettingsPage'
-
+import { MiniGameHubPage } from '@/pages/MiniGameHubPage'
 // コンポーネント本体の宣言
 export default function App() {
   const { bootstrap, ui } = useGameStore()
@@ -40,6 +40,9 @@ export default function App() {
       break
     case 'settings':
       content = <SettingsPage />
+      break
+    case 'minigame':
+      content = <MiniGameHubPage />
       break
     default:
       content = <HomePage />

@@ -1,37 +1,51 @@
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useGameStore } from '@/store/gameStore'
-
-const moods = ['🌞 テンションMAX', '🌙 まったり', '🔥 攻めの気配', '💧 守りの風', '💫 幸運の兆し', '⚖️ 均衡モード']
+import { getMoodInfo } from '@/constants/mood'
 
 export function RoulettePage() {
-    const { setPage } = useGameStore()
-    // const [状態の値, 状態を更新する関数] = useState<型>(初期値)
-    const [current, setCurrent] = useState<string | null>(null)
-
-    function spin() {
-        const i = Math.floor(Math.random() * moods.length)
-        setCurrent(moods[i])
-        // 将来ここでZustandのmoodを更新する(setMood)
-    }
-
+    const { setPage, game, spinMood, clearMood } = useGameStore()
+    const moodInfo = getMoodInfo(game.mood)
 
     return (
         <div className="space-y-4">
             <section>
-                <h2 className="text-xl font-bold mb-1">運命ルーレット</h2>
+                <h2 className="text-xl font-bold mb-1">ムードルーレット</h2>
                 <p className="text-sm text-gary-600">
-                    ルーレットロジックは未定義。現時点では”回す→結果が出る”流れだけ確認
+                    このターン全体の雰囲気(ムード)を決めます。
                 </p>
             </section>
 
             <section className="flex flex-col items-center gap-4">
                 <div className="flex h-40 w-40 items-center justify-center rounded-full border-4 border-sky-300 bg-sky-50 shadow-inner">
-                    <span className="text-center text-sm text-gray-700 px-4">
-                        {current ?? 'タープしてルーレットを回す'}
-                    </span>
+                    {moodInfo ? (
+                        <div className="text-center px-4">
+                            <div className="text-3xl mb-1">{moodInfo.icon}</div>
+                            <div className="text-sm font-semibold">{moodInfo.label}</div>
+                        </div>
+                    ) : (
+                        <span className="text-center text-sm text-gray-700 px-4">
+                            ボタンを押してムードを決定
+                        </span>
+                    )}
                 </div>
-                <Button onClick={spin}>ルーレットを回す</Button>
+                
+                {/* ムード決定ボタン */}
+                <Button onClick={spinMood}>ムードを決める</Button>
+                
+                {/* ムード消去ボタン：デバッグ用 */}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearMood}
+                >
+                    ムードをクリア
+                </Button>
+                {moodInfo && (
+                    <p className="text-xs text-gray-600 text-center px-4">
+                        {moodInfo.description}
+                    </p>
+                )}
+                
             </section>
 
             <section className="flex flex-wrap gap-2 text-xs text-gray-600">

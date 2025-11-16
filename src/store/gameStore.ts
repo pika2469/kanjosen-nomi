@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Player, Settings, GameStateSlice, Phase, Mood, Page } from '../types/game'
+import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction } from '../types/game'
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
+import { MOODS } from '@/constants/mood'
+import { getNextStationId } from '@/utils'
 
 // Store型の定義
 type Store = {
@@ -41,6 +43,13 @@ type Store = {
 
     // ページセット
     setPage: (page: Page) => void
+
+    // ルーレット関連
+    spinMood: () => void
+    clearMood: () => void
+
+    // 駅ロジック
+    moveStation: (steps: number, direction: Direction) => void
 }
 
 // Zustandストア本体
@@ -57,6 +66,8 @@ export const useGameStore = create<Store>((set, get) => ({
         turn: 1,
         mood: null,
         activePlayerIndex: 0,
+        currentStation: null,
+        visitedStations: [],
     },
     ui: {
         currentPage: 'home',
@@ -85,10 +96,14 @@ export const useGameStore = create<Store>((set, get) => ({
             style,
             level: 1,
             xp: 0,
+            sp: 0,
             Li: 1,
             handSizeMax: 2,
+            passives: [],
         }
-        set({ players: [...get().players, p] })
+        set((state) => ({
+            players: [...state.players, p],
+        }))
         await upsertPlayer(p)
     },
 
@@ -134,7 +149,53 @@ export const useGameStore = create<Store>((set, get) => ({
         set((state) => ({
             ui: { ...state.ui, currentPage: page }
         }))
-    }
+    },
+
+    spinMood: () => {
+        const moods = MOODS
+        if (moods.length === 0) return
+
+        const idx = Math.floor(Math.random() * moods.length)
+        const picked = moods[idx]
+
+        set((state) => ({
+            game: {
+                ...state.game,
+                mood: picked.id // id=Moodの情報を追加
+            },
+        }))
+    },
+
+    clearMood: () => {
+        set((state) => ({
+            game: {
+                ...state.game,
+                mood: null,
+            },
+        }))
+    },
+
+    // 駅を移動
+    moveStation: (steps, direction) => {
+        const { game, settings } = get()
+        const nextId = getNextStationId(
+            game.currentStation,
+            steps,
+            direction,
+            settings.allowDuplicateStations,
+            game.visitedStations,
+        )
+
+        set((state) => ({
+            game: {
+                ...state.game,
+                currentStation: nextId,
+                visitedStations: state.game.visitedStations.includes(nextId) 
+                ? state.game.visitedStations
+                : [...state.game.visitedStations, nextId],
+            },
+        }))
+    },
 
 }))
 
