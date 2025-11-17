@@ -65,6 +65,14 @@ export type StationId =
     | 'sakuranomiya'
     | 'temma'
 
+// 駅イベントの状態
+export interface StationEvent {
+    id: string              // イベントID(ユニークな文字列)
+    title: string           // イベント名(「繁華街ボーナス」など)
+    description: string     // 飲み会向けの説明テキスト
+    stationId: StationId    // どの駅で発生したか
+}
+
 // プレイヤーの属性
 export interface Player {
     id: string
@@ -84,8 +92,13 @@ export interface GameStateSlice {
     turn: number
     mood: Mood | null   // 未確定の間はnull
     activePlayerIndex: number   // 代表プレイヤー
+    
+    // 駅ロジック
     currentStation: StationId | null
     visitedStations: StationId[]
+
+    // 今ターンの駅イベント（なければnull）
+    currentEvent: StationEvent | null
 }
 
 // IndexedDBに永続保存する対象データ。復元にも使用

@@ -4,6 +4,7 @@ import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction } f
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
+import { pickStationEvent } from '@/stationEvents'
 
 // Store型の定義
 type Store = {
@@ -50,6 +51,9 @@ type Store = {
 
     // 駅ロジック
     moveStation: (steps: number, direction: Direction) => void
+
+    // 駅決定+駅イベント決定をまとめて行う(stationフェーズ用)
+    runStationPhase: (steps: number, direction: Direction) => void
 }
 
 // Zustandストア本体
@@ -68,6 +72,7 @@ export const useGameStore = create<Store>((set, get) => ({
         activePlayerIndex: 0,
         currentStation: null,
         visitedStations: [],
+        currentEvent: null,
     },
     ui: {
         currentPage: 'home',
@@ -193,6 +198,35 @@ export const useGameStore = create<Store>((set, get) => ({
                 visitedStations: state.game.visitedStations.includes(nextId) 
                 ? state.game.visitedStations
                 : [...state.game.visitedStations, nextId],
+            },
+        }))
+    },
+
+    // 駅決定+駅イベント決定
+    runStationPhase: (steps, direction) => {
+        const { game, settings } = get()
+
+        // 1: 次の駅を決める
+        const nextId = getNextStationId(
+            game.currentStation,
+            steps,
+            direction,
+            settings.allowDuplicateStations,
+            game.visitedStations,
+        )
+
+        // 2: 駅属性からイベントを1つ選ぶ
+        const event = pickStationEvent(nextId)
+
+        // 3: state更新
+        set((state) => ({
+            game: {
+                ...state.game,
+                currentStation: nextId,
+                visitedStations: state.game.visitedStations.includes(nextId) 
+                ? state.game.visitedStations
+                : [...state.game.visitedStations, nextId],
+                currentEvent: event,
             },
         }))
     },

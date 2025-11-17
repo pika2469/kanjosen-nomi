@@ -5,12 +5,13 @@ import { getMoodInfo } from '@/constants/mood'
 import { findStation } from '@/stations'
 
 export function TurnPage() {
-    const { players, game, setPage, moveStation } = useGameStore()
+    const { players, game, setPage, runStationPhase } = useGameStore()
     const { phase, proceed } = usePhaseController()
     const moodInfo = getMoodInfo(game.mood)
 
     const activePlayer = players[game.activePlayerIndex]
     const stationInfo = findStation(game.currentStation)
+    const event = game.currentEvent
 
     return (
         <div className="space-y-4">
@@ -55,31 +56,18 @@ export function TurnPage() {
                         {stationInfo ? `${stationInfo.name} (${stationInfo.attr})` : '未決定'}
                     </div>
                 </div>
+
+                {/* 駅イベントがあれば表示 */}
+                {event && (
+                    <div className="rounded-xl border bg-white p-3 shadow-sm col-span-2">
+                        <div className="text-xs text-gray-500 mb-1">駅イベント</div>
+                        <div className="text-sm font-semibold mb-1">{event.title}</div>
+                        <div className="text-xs text-gray-600">{event.description}</div>
+                    </div>
+                )}
             </section>
 
-            <section className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => moveStation(1, 'cw')}
-                    >
-                        次の駅へ進む(1駅/時計回り/デバッグ用)
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => moveStation(1, 'ccw')}
-                    >
-                        次の駅へ進む(1駅/逆方向/デバッグ用)
-                    </Button>
-                </div>
-                <p className="text-xs text-gray-500">
-                    ※本番ではサイコロやルーレットから steps(1~6)と方向を決める予定
-                </p>
-            </section>
-
+            {/* 通常操作 */}
             <section className="flex flex-wrap gap-2">
                 <Button onClick={proceed}>次フェーズへ</Button>
                 <Button variant="outline" onClick={() => setPage('roulette')}>
@@ -91,6 +79,30 @@ export function TurnPage() {
                 <Button variant="outline" onClick={() => setPage('result')}>
                     結果画面へ
                 </Button>
+            </section>
+
+            {/* デバッグ用 */}
+            <section className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => runStationPhase(1, 'cw')}
+                    >
+                        次の駅へ進む(1駅/時計回り/デバッグ用)
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => runStationPhase(1, 'ccw')}
+                    >
+                        次の駅へ進む(1駅/逆方向/デバッグ用)
+                    </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                    ※本番ではサイコロやルーレットから steps(1~6)と方向を決める予定
+                </p>
             </section>
 
         </div>
