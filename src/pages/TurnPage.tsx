@@ -5,7 +5,7 @@ import { getMoodInfo } from '@/constants/mood'
 import { findStation } from '@/stations'
 
 export function TurnPage() {
-    const { players, game, setPage, runStationPhase } = useGameStore()
+    const { players, game, setPage, runStationPhase, runRollPhase } = useGameStore()
     const { phase, proceed } = usePhaseController()
     const moodInfo = getMoodInfo(game.mood)
 
@@ -102,6 +102,20 @@ export function TurnPage() {
                 </div>
                 <p className="text-xs text-gray-500">
                     ※本番ではサイコロやルーレットから steps(1~6)と方向を決める予定
+                </p>
+            </section>
+
+            {/* 杯数抽選のデバッグ */}
+            <section className="space-y-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={runRollPhase}
+                >
+                    杯数を仮抽選する
+                </Button>
+                <p className="text-xs text-gray-500">
+                    現時点ではベースロール+ムード補正のみ。駅イベント・パッシブ補正は今後追加予定
                 </p>
             </section>
 

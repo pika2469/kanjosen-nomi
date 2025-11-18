@@ -2,7 +2,16 @@ import { Button } from '@/components/ui/button'
 import { useGameStore } from '@/store/gameStore'
 
 export function HomePage() {
-    const { setPage } = useGameStore()
+    const { setPage, players, addPlayer } = useGameStore()
+
+    // デバッグ用：ダミープレイヤーを追加するヘルパ
+    const handleAddDebugPlayer = () => {
+        const index = players.length + 1
+        const name = `プレイヤー${index}`
+
+        // スタイルは仮で'attack'
+        addPlayer(name, 'attack')
+    }
 
     return (
         <div className="space-y-6">
@@ -39,6 +48,30 @@ export function HomePage() {
                 >
                     ⚙️ 設定
                 </Button>
+            </section>
+
+            {/* デバッグ用セクション */}
+            <section className="space-y-2 border-t pt-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="text-xs font-semibold text-gray-500">
+                            デバッグ用プレイヤー操作
+                        </div>
+                        <div className="text-xs text-gray-500">
+                            現在のプレイヤー人数: {players.length}
+                        </div>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddDebugPlayer}
+                    >
+                        プレイヤーを追加(仮)
+                    </Button>
+                </div>
+                <p className="text-[10px] text-gray-400">
+                    本番環境ではこのボタンは削除予定
+                </p>
             </section>
             
         </div>

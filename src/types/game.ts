@@ -86,21 +86,6 @@ export interface Player {
     passives: PassiveId[]   // 取得済みパッシブID
 }
 
-// 最新の進行状況
-export interface GameStateSlice {
-    phase: Phase
-    turn: number
-    mood: Mood | null   // 未確定の間はnull
-    activePlayerIndex: number   // 代表プレイヤー
-    
-    // 駅ロジック
-    currentStation: StationId | null
-    visitedStations: StationId[]
-
-    // 今ターンの駅イベント（なければnull）
-    currentEvent: StationEvent | null
-}
-
 // IndexedDBに永続保存する対象データ。復元にも使用
 export interface PersistedData {
     settings: Settings
@@ -116,3 +101,31 @@ export type Page =
     | 'result'
     | 'settings'
     | 'minigame'
+
+// 各プレイヤーの杯数結果
+export interface DrinkResult {
+    playerId: string
+    total: number       // 最終杯数
+    base: number        // ベースロール
+    moodMod: number     // ムード補正（後で調整）
+    eventMod: number    // 駅イベント補正（後で調整）
+    passiveMod: number  // パッシブ補正（後で調整）
+}
+
+// 最新の進行状況
+export interface GameStateSlice {
+    phase: Phase
+    turn: number
+    mood: Mood | null   // 未確定の間はnull
+    activePlayerIndex: number   // 代表プレイヤー
+    
+    // 駅ロジック
+    currentStation: StationId | null
+    visitedStations: StationId[]
+
+    // 今ターンの駅イベント（なければnull）
+    currentEvent: StationEvent | null
+
+    // 今ターンの杯数結果（プレイヤーごと）
+    currentDrinks: DrinkResult[]
+}

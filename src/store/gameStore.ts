@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction } from '../types/game'
+import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction, DrinkResult } from '../types/game'
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
 import { pickStationEvent } from '@/stationEvents'
+import { calcDrinkForPlayer } from '@/drinkLogic'
 
 // Store型の定義
 type Store = {
@@ -54,6 +55,9 @@ type Store = {
 
     // 駅決定+駅イベント決定をまとめて行う(stationフェーズ用)
     runStationPhase: (steps: number, direction: Direction) => void
+
+    // 杯数抽選ロジック(roll フェーズ用)
+    runRollPhase: () => void
 }
 
 // Zustandストア本体
@@ -73,6 +77,7 @@ export const useGameStore = create<Store>((set, get) => ({
         currentStation: null,
         visitedStations: [],
         currentEvent: null,
+        currentDrinks: [],
     },
     ui: {
         currentPage: 'home',
@@ -227,6 +232,32 @@ export const useGameStore = create<Store>((set, get) => ({
                 ? state.game.visitedStations
                 : [...state.game.visitedStations, nextId],
                 currentEvent: event,
+            },
+        }))
+    },
+
+    runRollPhase: () => {
+        const { players, game, settings } = get()
+
+        // プレイヤーがいなければ何もしない
+        if (!players || players.length === 0) {
+            set((state) => ({
+                game: {
+                    ...state.game,
+                    currentDrinks: [],
+                },
+            }))
+            return
+        }
+
+        const results: DrinkResult[] = players.map((p) => 
+            calcDrinkForPlayer(p, game.mood, game.currentEvent, settings.safety),
+        )
+
+        set((state) => ({
+            game: {
+                ...state.game,
+                currentDrinks: results,
             },
         }))
     },
