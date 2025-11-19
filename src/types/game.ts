@@ -65,12 +65,33 @@ export type StationId =
     | 'sakuranomiya'
     | 'temma'
 
+
+// 駅イベントID
+export type StationEventId =
+    | 'downtown_rep_plus2_others_plus1' // 繁華街A: 全員+1 + 代表さらに+1
+    | 'downtown_all_plus1'              // 繁華街B: 全員+1
+    | 'waterside_others_minus1'         // 水辺A: 代表以外-1
+    | 'waterside_rep_minus1'            // 水辺B: 代表のみ-1
+    | 'shitamachi_all_plus1'            // 下町A: 全員+1
+    | 'shitamachi_rep_plus1'            // 下町B: 代表のみ+1
+    | 'transfer_rep_draw_plus1'         // 乗換A: 代表カードドロー+1
+    | 'transfer_rep_skip_action'        // 乗換B: 代表カード使用不可
+
+export type StationAttr = '繁華街' | '水辺' | '下町' | '乗換'
+
+export type CardEffect =
+    | 'none'
+    | 'rep_draw_plus1'
+    | 'rep_skip_action'
+
 // 駅イベントの状態
 export interface StationEvent {
-    id: string              // イベントID(ユニークな文字列)
+    id: StationEventId      // イベントID: どのイベントが発生したか
+    stationId: StationId    // 駅ID: どの駅で発生したか
+    attr: StationAttr
     title: string           // イベント名(「繁華街ボーナス」など)
     description: string     // 飲み会向けの説明テキスト
-    stationId: StationId    // どの駅で発生したか
+    cardEffect: CardEffect  // 今はカード効果フラグだけ。カード処理は後々実装
 }
 
 // プレイヤーの属性

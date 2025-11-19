@@ -250,8 +250,17 @@ export const useGameStore = create<Store>((set, get) => ({
             return
         }
 
+        const activePlayer = players[game.activePlayerIndex] ?? null
+        const activePlayerId = activePlayer ? activePlayer.id : null
+
         const results: DrinkResult[] = players.map((p) => 
-            calcDrinkForPlayer(p, game.mood, game.currentEvent, settings.safety),
+            calcDrinkForPlayer(
+                p,
+                game.mood,
+                game.currentEvent, 
+                settings.safety,
+                activePlayerId,                
+            ),
         )
 
         set((state) => ({

@@ -1,14 +1,24 @@
 import type { Mood, StationEvent, DrinkResult, Player } from '@/types/game'
 
-// ベースロールの上限（暫定で0~4杯想定)
-const MAX_DRINK_BASE = 4
+// ベースロールの上限（暫定で0~5杯想定)
+const MAX_DRINK_BASE = 5
 
 // 安全側の上限（セーフティON時に使う）
 const MAX_DRINK_SAFETY = 2
 
-// 0~maxのランダム整数を生成する関数
-function randomInt(max: number): number {
-    return Math.floor(Math.random() * (max+1))
+// 0~3杯の重み付きベースロール
+function randomBaseDrink(): number {
+    const r = Math.random()
+
+    if (r < 0.1) {
+        return 0
+    } else if (r < 0.5) {
+        return 1
+    } else if (r < 0.9) {
+        return 2
+    } else {
+        return 3
+    }
 }
 
 // ムードによる補正（仮実装）
@@ -29,10 +39,50 @@ function getMoodModifier(mood: Mood | null): number {
     }
 }
 
-// 駅イベントによる補正（今は仮で0）
-function getEventModifier(_event: StationEvent | null): number {
-    // TODO: app_spec_v1.2の具体イベントに応じて補正値を変える
-    return 0
+// 駅イベントによる補正
+function getEventModifier(
+    event: StationEvent | null,
+    playerId: string,
+    activePlayerId: string | null,
+): number {
+    if (!event || !activePlayerId) return 0
+
+    const isRep = playerId === activePlayerId
+
+    switch (event.id) {
+        
+        // '繁華街'
+        case 'downtown_rep_plus2_others_plus1':
+            // 全員+1 + 代表さらに+1
+            return isRep ? 2 : 1
+        case 'downtown_all_plus1':
+            // 全員+1
+            return 1
+        
+        // '水辺'
+        case 'waterside_others_minus1':
+            // 代表以外の全員-1
+            return isRep ? 0 : -1
+        case 'waterside_rep_minus1':
+            // 代表のみ-1
+            return isRep ? -1 : 0
+
+        // '下町'
+        case 'shitamachi_all_plus1':
+            // 全員+1
+            return 1
+        case 'shitamachi_rep_plus1':
+            // 代表のみ+1
+            return isRep ? 1 : 0
+
+        // '乗換'
+        case 'transfer_rep_draw_plus1':
+        case 'transfer_rep_skip_action':
+            return 0
+
+        default:
+            return 0
+    }
 }
 
 // パッシブによる補正（今は仮で0)
@@ -46,7 +96,6 @@ function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value))
 }
 
-
 // 1プレイヤー分の杯数を計算する関数
 // - ベースロール：0~3杯程度（仮）
 // - ムード・イベント・パッシブの補正を合計
@@ -57,12 +106,13 @@ export function calcDrinkForPlayer(
     mood: Mood | null,
     event: StationEvent | null,
     safety: boolean,
+    activePlayerId: string | null,
 ): DrinkResult {
 
-    const base = randomInt(3)
+    const base = randomBaseDrink()
 
     const moodMod = getMoodModifier(mood)
-    const eventMod = getEventModifier(event)
+    const eventMod = getEventModifier(event, player.id, activePlayerId)
     const passiveMod = getPassiveModifier(player)
 
     const rawTotal = base + moodMod + eventMod + passiveMod
