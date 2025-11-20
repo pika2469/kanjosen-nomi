@@ -6,6 +6,7 @@ import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
 import { pickStationEvent } from '@/stationEvents'
 import { calcDrinkForPlayer } from '@/drinkLogic'
+import { applyXpAndLevelUp, calcTurnXpFromDrinks } from '@/xpLogic'
 
 // Store型の定義
 type Store = {
@@ -58,6 +59,9 @@ type Store = {
 
     // 杯数抽選ロジック(roll フェーズ用)
     runRollPhase: () => void
+
+    // 成長判定
+    runProgressPhase: () => void
 }
 
 // Zustandストア本体
@@ -268,6 +272,38 @@ export const useGameStore = create<Store>((set, get) => ({
                 ...state.game,
                 currentDrinks: results,
             },
+        }))
+    },
+
+    runProgressPhase: () => {
+        const { players, game } = get()
+        const drinks = game.currentDrinks
+
+        if (!players || players.length === 0) {
+            return
+        }
+        if (!drinks || drinks.length === 0) {
+            return
+        }
+
+        // playerID → 今ターン獲得XPのマップを作る
+        const xpMap = new Map<string, number>()
+
+        for (const r of drinks) {
+            const gained = calcTurnXpFromDrinks(r.total)
+            const prev = xpMap.get(r.playerId) ?? 0
+            xpMap.set(r.playerId, prev + gained)
+        }
+
+        // 各プレイヤーにXPを加算し、必要ならレベルアップ&SP加算
+        const updatedPlayers = players.map((p) => {
+            const gainedXp = xpMap.get(p.id) ?? 0
+            if (gainedXp <= 0) return p
+            return applyXpAndLevelUp(p, gainedXp)
+        })
+
+        set(() => ({
+            players: updatedPlayers,
         }))
     },
 
