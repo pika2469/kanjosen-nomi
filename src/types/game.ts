@@ -177,4 +177,7 @@ export interface GameStateSlice {
 
     // 直前で使ったカード（デバッグ用）
     lastUsedCard: LastUsedCard | null
+
+    // このターンにカード使用が禁止されているプレイヤーID（なければnull）
+    cardUsageBlockedForPlayerId: string | null
 }

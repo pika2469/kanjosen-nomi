@@ -2,12 +2,6 @@ import { useGameStore } from '@/store/gameStore'
 import { Button } from '@/components/ui/button'
 import { getCardById } from '@/cards'
 
-const dummyCards = [
-    { id: 'c1', label: '🟥 ＋1券（個人）', desc: '任意の1名に+1杯' },
-    { id: 'c2', label: '🟦 ノンアル券', desc: '任意の1名に+1杯' },
-    { id: 'c3', label: '🟪 再抽選券', desc: '任意の1名に+1杯' }
-]
-
 export function CardHandPage() {
     const { players, game, setPage, useCard } = useGameStore()
 
@@ -30,7 +24,10 @@ export function CardHandPage() {
         )
     }
 
+    const isBlocked = game.cardUsageBlockedForPlayerId === activePlayer.id
+
     const handleUseCard = (cardId: string) => {
+        if (isBlocked) return
         useCard(activePlayer.id, cardId as any)
     }
 
@@ -54,6 +51,14 @@ export function CardHandPage() {
                     </div>
                 </div>
 
+                {/* 代表プレイヤーブロック中メッセージ */}
+                {isBlocked && (
+                    <div className="mt-2 rounded-md border bg-red-50 border-red-100 px-2 py-1 text-[11px] text-red-600">
+                        このターンは乗換イベントの影響で、代表はカードを使用できません
+                    </div>
+                )}
+
+                {/* 手札一覧 */}
                 {activePlayer.hand.length === 0 ? (
                     <div className="text-xs text-gray-500 mt-2">
                         手札がありません
@@ -90,6 +95,7 @@ export function CardHandPage() {
                                         size="sm"
                                         variant="outline"
                                         onClick={() => handleUseCard(cardId)}
+                                        disabled={isBlocked}    // 代表ブロック時は押せない
                                     >
                                         使う
                                     </Button>
@@ -116,37 +122,6 @@ export function CardHandPage() {
             <section className="flex flex-wrap gap-2 text-xs text-gray-500">
                 <Button size="sm" onClick={() => setPage('turn')}>
                     ターン画面へ戻る
-                </Button>
-            </section>
-        </div>
-    )
-
-    return (
-        <div className="space-y-4">
-            <section>
-                <h2 className="text-xl font-bold mb-1">カード</h2>
-                <p className="text-sm text-gray-600">
-                    カード画面のレイアウトの雰囲気を確認するページ
-                </p>
-            </section>
-
-            <section className="grid gap-3">
-                {dummyCards.map((card) => (
-                    <div key={card.id} className="flex items-center justify-between rounded-xl border bg-white p-3 shadow-sm">
-                        <div>
-                            <div className="font-semibold text-sm">{card.label}</div>
-                            <div className="text-xs text-gray-500">{card.desc}</div>
-                        </div>
-                        <Button size="sm" variant="outline">
-                            使う（仮）
-                        </Button>
-                    </div>
-                ))}
-            </section>
-
-            <section className="flex flex-wrap gap-2 text-xs text-gray-500">
-                <Button variant="outline" size="sm" onClick={() => setPage('turn')}>
-                    ターン画面に戻る
                 </Button>
             </section>
         </div>

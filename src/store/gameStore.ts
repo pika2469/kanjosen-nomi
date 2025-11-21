@@ -91,6 +91,7 @@ export const useGameStore = create<Store>((set, get) => ({
         currentEvent: null,
         currentDrinks: [],
         lastUsedCard: null,
+        cardUsageBlockedForPlayerId: null,
     },
     ui: {
         currentPage: 'home',
@@ -157,6 +158,10 @@ export const useGameStore = create<Store>((set, get) => ({
                 phase: 'roulette',
                 mood: null,
                 activePlayerIndex: nextIdx,
+                currentDrinks: [],
+                currentEvent: null,
+                lastUsedCard: null,
+                cardUsageBlockedForPlayerId: null,
             },
         })
     },
@@ -238,16 +243,55 @@ export const useGameStore = create<Store>((set, get) => ({
         const event = pickStationEvent(nextId)
 
         // 3: state更新
-        set((state) => ({
-            game: {
-                ...state.game,
-                currentStation: nextId,
-                visitedStations: state.game.visitedStations.includes(nextId) 
+        set((state) => {
+
+            // 現在の代表プレイヤーを取得
+            const activePlayer = state.players[state.game.activePlayerIndex]
+
+            // 訪問済駅リストを更新
+            const alreadyVisited = state.game.visitedStations.includes(nextId)
+            const newVisited = alreadyVisited
                 ? state.game.visitedStations
-                : [...state.game.visitedStations, nextId],
-                currentEvent: event,
-            },
-        }))
+                : [...state.game.visitedStations, nextId]
+            
+            let updatedPlayers = state.players
+            let cardUsageBlockedForPlayerId = state.game.cardUsageBlockedForPlayerId
+
+            // 乗換イベントA: 代表カードドロー+1枚
+            if (event && event.cardEffect === 'rep_draw_plus1' && activePlayer) {
+                updatedPlayers = state.players.map((p) => {
+                    if (p.id !== activePlayer.id) return p
+
+                    // 手札が上限ならドローしない
+                    if (p.hand.length >= p.handSizeMax) {
+                        return p
+                    }
+
+                    const newCardId = drawRandomCardId()
+                    return {
+                        ...p,
+                        hand: [...p.hand, newCardId],
+                    }
+                })
+            }
+
+            // 乗換イベントB: 代表はこのターンカード使用不可
+            if (event && event.cardEffect === 'rep_skip_action' && activePlayer) {
+                cardUsageBlockedForPlayerId = activePlayer.id
+            }
+
+            return {
+                ...state,
+                players: updatedPlayers,
+                game: {
+                    ...state.game,
+                    currentStation: nextId,
+                    visitedStations: newVisited,
+                    currentEvent: event,
+                    cardUsageBlockedForPlayerId,
+                },
+            }
+        })
     },
 
     runRollPhase: () => {
@@ -369,6 +413,13 @@ export const useGameStore = create<Store>((set, get) => ({
     },
 
     useCard: (playerId, cardId) => {
+        const { game } = get()
+
+        // このターンカード使用禁止なら何もしない
+        if (game.cardUsageBlockedForPlayerId === playerId) {
+            return 
+        }
+        
         set((state) => {
             const players = state.players.map((p) => {
                 if (p.id !== playerId) return p
