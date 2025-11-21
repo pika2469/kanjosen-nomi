@@ -4,10 +4,10 @@ import type { Player } from '@/types/game'
 const LEVEL_XP_THRESHOLDS: number[] = [
     0,  // 0 (未使用)
     0,  // Lv1
-    10, // Lv2 到達に必要な累積XP
-    25, // Lv3
-    45, // Lv4
-    70, // Lv5
+    3, // Lv2 到達に必要な累積XP
+    7, // Lv3
+    12, // Lv4
+    18, // Lv5
 ]
 
 // レベル上限

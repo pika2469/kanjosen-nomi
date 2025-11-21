@@ -4,9 +4,6 @@
 // 飲みスタイル
 export type PlayerStyle = 'attack' | 'moderate' | 'trick'
 
-// カード系統
-export type CardKind = 'attack' | 'safe' | 'special'
-
 // ムードルーレット（テンションMAX, まったり, 攻め, 守り, 幸運, k均衡）
 export type Mood = 'max' | 'calm' | 'aggressive' | 'defensive' | 'lucky' | 'balance'
 
@@ -23,6 +20,33 @@ export type Phase =
     | 'action'      // 6. カード使用
     | 'progress'    // 7. 成長判定
     | 'result'      // 8. 結果まとめ
+
+// カード系統
+export type CardKind = 'attack' | 'safe' | 'special'
+
+// カードID
+export type CardId =
+    | 'atk_plus1_single'
+    | 'atk_plus1_all'
+    | 'safe_minus1_self'
+    | 'safe_noalcohol'
+    | 'sp_reroll_mood'
+    | 'sp_reroll_drink'
+
+// カード定義
+export interface Card {
+    id: CardId
+    kind: CardKind
+    name: string
+    description: string
+}
+
+// 誰がどのカードを使ったか（デバッグ用）
+export interface LastUsedCard {
+    playerId: string
+    cardId: CardId
+    usedAtTurn: number
+}
 
 // アプリ動作のグローバル設定
 export interface Settings {
@@ -105,6 +129,7 @@ export interface Player {
     Li: number      // 下限杯数、デフォルトは1杯（最終杯数はLiを下回らない）
     handSizeMax : number    // 手札上限、2~3枚の範囲で変動
     passives: PassiveId[]   // 取得済みパッシブID
+    hand: CardId[]  // 手札
 }
 
 // IndexedDBに永続保存する対象データ。復元にも使用
@@ -149,4 +174,7 @@ export interface GameStateSlice {
 
     // 今ターンの杯数結果（プレイヤーごと）
     currentDrinks: DrinkResult[]
+
+    // 直前で使ったカード（デバッグ用）
+    lastUsedCard: LastUsedCard | null
 }

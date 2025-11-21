@@ -3,12 +3,20 @@ import { useGameStore } from '@/store/gameStore'
 import { usePhaseController } from '@/features/phase/PhaseController'
 import { getMoodInfo } from '@/constants/mood'
 import { findStation } from '@/stations'
+import { getCardById } from '@/cards'
 
 export function TurnPage() {
-    const { players, game, setPage, runStationPhase, runRollPhase } = useGameStore()
+    const { 
+        players, 
+        game, 
+        setPage, 
+        runStationPhase, 
+        runRollPhase,
+        drawToAll,    
+    } = useGameStore()
     const { phase, proceed } = usePhaseController()
-    const moodInfo = getMoodInfo(game.mood)
 
+    const moodInfo = getMoodInfo(game.mood)
     const activePlayer = players[game.activePlayerIndex]
     const stationInfo = findStation(game.currentStation)
     const event = game.currentEvent
@@ -67,6 +75,56 @@ export function TurnPage() {
                 )}
             </section>
 
+            {/* プレイヤーの手札一覧 */}
+            <section className="rounded-xl border bg-white p-3 shadow-sm space-y-2 text-sm">
+                <div className="text-xs text-gray-500 mb-1">手札一覧</div>
+                {players.length === 0 ? (
+                    <div className="text-xs text-gray-500">プレイヤーが登録されていません</div>
+                ) : (
+                    <ul className="space-y-2">
+                        {players.map((p) => (
+                            <li key={p.id}>
+                                <div>
+                                    <span className="font-medium">{p.name}</span>
+                                    <span className="text-[11px] text-gray-500">
+                                        手札 {p.hand.length} / {p.handSizeMax}
+                                    </span>
+                                </div>
+                                {p.hand.length === 0 ? (
+                                    <div className="text-[11px] text-gray-500">
+                                        手札なし
+                                    </div>
+                                ) : (
+                                    <ul className="mt-1 space-y-0.5 pl-3">
+                                        {p.hand.map((cardId) => {
+                                            const card = getCardById(cardId)
+                                            if (!card) return null
+                                            const kindLabel =
+                                                card.kind === 'attack' 
+                                                    ? '攻撃'
+                                                    : card.kind === 'safe'
+                                                    ? 'セーフ'
+                                                    : '特殊'
+                                            return (
+                                                <li key={cardId} className="text-[12px]">
+                                                    <span className="mr-1 text-[10px] text-gray-500">
+                                                        [{kindLabel}]
+                                                    </span>
+                                                    <span className="font-medium">{card.name}</span>
+                                                    <span className="ml-1 text-[10px] text-gray-500">
+                                                        {card.description}
+                                                    </span>
+                                                </li>
+                                            )
+                                        })}
+                                    </ul>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </section>
+
             {/* 通常操作 */}
             <section className="flex flex-wrap gap-2">
                 <Button onClick={proceed}>次フェーズへ</Button>
@@ -116,6 +174,20 @@ export function TurnPage() {
                 </Button>
                 <p className="text-xs text-gray-500">
                     現時点ではベースロール+ムード補正のみ。駅イベント・パッシブ補正は今後追加予定
+                </p>
+            </section>
+
+            {/* 手札ドローデバッグ */}
+            <section className="space-y-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={drawToAll}    
+                >
+                    全員1枚ドロー(デバッグ)
+                </Button>
+                <p className="text-[10px] text-gray-400">
+                    ※ 本番では駅イベントやドロー専用フェーズからカードを取得
                 </p>
             </section>
 

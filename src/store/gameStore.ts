@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction, DrinkResult } from '../types/game'
+import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction, DrinkResult, PlayerStyle, CardId } from '../types/game'
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
 import { pickStationEvent } from '@/stationEvents'
 import { calcDrinkForPlayer } from '@/drinkLogic'
 import { applyXpAndLevelUp, calcTurnXpFromDrinks } from '@/xpLogic'
+import { drawRandomCardId } from '@/cards'
 
 // Store型の定義
 type Store = {
@@ -62,10 +63,17 @@ type Store = {
 
     // 成長判定
     runProgressPhase: () => void
+
+    // カード系アクション
+    drawCard: (playerId: string) => void
+    drawToAll: () => void
+    clearHands: () => void
+    useCard: (playerId: string, cardId: CardId) => void
 }
 
 // Zustandストア本体
 export const useGameStore = create<Store>((set, get) => ({
+    
     // settings初期値
     settings: {
         allowDuplicateStations: true,
@@ -82,6 +90,7 @@ export const useGameStore = create<Store>((set, get) => ({
         visitedStations: [],
         currentEvent: null,
         currentDrinks: [],
+        lastUsedCard: null,
     },
     ui: {
         currentPage: 'home',
@@ -114,6 +123,7 @@ export const useGameStore = create<Store>((set, get) => ({
             Li: 1,
             handSizeMax: 2,
             passives: [],
+            hand: [],
         }
         set((state) => ({
             players: [...state.players, p],
@@ -307,5 +317,93 @@ export const useGameStore = create<Store>((set, get) => ({
         }))
     },
 
+    drawCard: (playerId) => {
+        set((state) => {
+            const players = state.players.map((p) => {
+                if (p.id !== playerId) return p
+
+                // 処理対象のプレイヤーの場合
+                // 手札が上限値以上の場合はカードは引かない
+                if (p.hand.length >= p.handSizeMax) {
+                    return p
+                }
+
+                // カードを引く処理
+                const newCardId = drawRandomCardId()
+                return {
+                    ...p,
+                    hand: [...p.hand, newCardId],
+                }
+            })
+
+            return { ...state, players }
+        })
+    },
+
+    drawToAll: () => {
+        set((state) => {
+            const players = state.players.map((p) => {
+                if (p.hand.length >= p.handSizeMax) {
+                    return p
+                }
+                const newCardId = drawRandomCardId()
+                return {
+                    ...p,
+                    hand: [...p.hand, newCardId],
+                }
+            })
+
+            return { ...state, players }
+        })
+    },
+
+    clearHands: () => {
+        set((state) => {
+            const players = state.players.map((p) => ({
+                ...p,
+                hand: [],
+            }))
+
+            return { ...state, players }
+        })
+    },
+
+    useCard: (playerId, cardId) => {
+        set((state) => {
+            const players = state.players.map((p) => {
+                if (p.id !== playerId) return p
+
+                // 手札にこのカードがあるか確認
+                const idx = p.hand.indexOf(cardId)
+                if (idx === -1) {
+                    return p
+                }
+
+                // 先頭の1枚だけ使用
+                const newHand = [...p.hand]
+                newHand.splice(idx, 1)
+
+                return {
+                    ...p,
+                    hand: newHand,
+                }
+            })
+
+            const updateGame = {
+                ...state.game,
+                lastUsedCard: {
+                    playerId,
+                    cardId,
+                    usedAtTurn: state.game.turn,
+                },
+            }
+
+            return {
+                ...state,
+                players,
+                game: updateGame,
+            }
+        })
+    }
 }))
 
