@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction, DrinkResult, PlayerStyle, CardId, PassiveId } from '../types/game'
+import type { Player, Settings, GameStateSlice, Phase, Mood, Page, UiState, Direction, CardId, PassiveId } from '../types/game'
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
@@ -22,9 +22,10 @@ type Store = {
     game: GameStateSlice
 
     // ページ情報
-    ui: {
-        currentPage: Page
-    }
+    // ui: {
+    //     currentPage: Page
+    // }
+    ui: UiState
 
     // --------- 関数 -----------------
     // 初期化/復元 : 起動時にDBから設定・プレイヤーを読み込み、ストアに反映
@@ -32,6 +33,10 @@ type Store = {
 
     // 設定：設定の一部を更新し、ストア&DBの両方に反映
     setSettings: (patch: Partial<Settings>) => Promise<void>
+
+    // ページ遷移
+    page: Page
+    setPage: (page: Page) => void
 
     // プレイヤー
     addPlayer: (name: string, style: Player['style']) => Promise<void>
@@ -41,13 +46,12 @@ type Store = {
     // 進行
     setMood: (mood: Mood | null) => void
     setPhase: (phase: Phase) => void
+    setPhasePlayerIndex: (index: number | null) => void
     nextTurn: () => void
+    proceedPhase: () => void
 
     // データ削除
     resetAllData: () => Promise<void>
-
-    // ページセット
-    setPage: (page: Page) => void
 
     // ルーレット関連
     spinMood: () => void
@@ -60,7 +64,8 @@ type Store = {
     runStationPhase: (steps: number, direction: Direction) => void
 
     // 杯数抽選ロジック(roll フェーズ用)
-    runRollPhase: () => void
+    // runRollPhase: () => void
+    runRollPhaseForPlayer: (playerIndex: number) => void
 
     // 成長判定
     runProgressPhase: () => void
@@ -77,19 +82,24 @@ type Store = {
 
 // Zustandストア本体
 export const useGameStore = create<Store>((set, get) => ({
-    
-    // settings初期値
+    players: [],
+    page: 'result',
+
+    // -------------------------------------------------------
+    // 初期化
+    // -------------------------------------------------------
     settings: {
         allowDuplicateStations: true,
         sound: true,
         safety: true,
     },
-    players: [],
+
     game: {
-        phase: 'roulette',
+        phase: 'mood',
         turn: 1,
         mood: null,
         activePlayerIndex: 0,
+        phasePlayerIndex: null,
         currentStation: null,
         visitedStations: [],
         currentEvent: null,
@@ -97,10 +107,24 @@ export const useGameStore = create<Store>((set, get) => ({
         lastUsedCard: null,
         cardUsageBlockedForPlayerId: null,
     },
+
     ui: {
         currentPage: 'home',
     },
 
+    // setPage: (page) => set({ page }),
+    setPage: (page) =>
+        set((state) => ({
+            ...state,
+            ui: {
+                ...state.ui,
+                currentPage: page,
+            },            
+        })),
+
+    // -------------------------------------------------------
+    // データ保存関連
+    // -------------------------------------------------------
     // 起動時の復元処理
     bootstrap: async () => {
         const [s, ps] = await Promise.all([loadSettings(), loadPlayers()])
@@ -148,20 +172,67 @@ export const useGameStore = create<Store>((set, get) => ({
         await replacePlayers(next)
     },
 
-    setMood: (mood) => set({ game: { ...get().game, mood } }),
-    setPhase: (phase) => set({ game: { ...get().game, phase } }),
+    // データ初期化
+    resetAllData: async () => {
+        const { bootstrap } = get()
 
-    // ターン遷移 + 代表プレイヤー交代
+        // 1) IndexedDBリセット
+        await resetAll()
+
+        // 2) Zustand側のplaers, gameステートを初期化
+        set({
+            players: [],
+            game: {
+                phase: 'mood',
+                turn: 1,
+                activePlayerIndex: 0,
+                phasePlayerIndex: null,
+                mood: null,
+                currentStation: null,
+                visitedStations: [],
+                currentEvent: null,
+                currentDrinks: [],
+                lastUsedCard: null,
+                cardUsageBlockedForPlayerId: null,
+            },
+        })
+
+        // 3) bootstrap (設定読込など)
+        await bootstrap()   
+    },
+
+
+    // -------------------------------------------------------
+    // フェーズ進行
+    // -------------------------------------------------------
+    setPhase: (phase) =>
+        set((state) => ({
+            game: {
+                ...state.game,
+                phase,
+            },
+        })),
+    
+    // 操作中のプレイヤーIDを取得
+    setPhasePlayerIndex: (index) =>
+        set((state) => ({
+            game: {
+                ...state.game,
+                phasePlayerIndex: index,
+            },
+        })),
+
+    // ターン遷移 + 変数初期化
     nextTurn: () => {
         const g = get().game
         const nextIdx = (g.activePlayerIndex + 1) % Math.max(1, get().players.length || 1)
         set({
             game: {
                 ...g,
-                turn: g.turn + 1,
-                phase: 'roulette',
+                turn: g.turn + 1,   // ターン数+1
+                phase: 'mood',
                 mood: null,
-                activePlayerIndex: nextIdx,
+                activePlayerIndex: nextIdx, // 代表プレイヤーを次のプレイヤーへ移動
                 currentDrinks: [],
                 currentEvent: null,
                 lastUsedCard: null,
@@ -170,20 +241,177 @@ export const useGameStore = create<Store>((set, get) => ({
         })
     },
 
-    // データ初期化
-    resetAllData: async () => {
-        const { bootstrap } = get()
-        await resetAll()    // IndexedDBの全削除
-        await bootstrap()   // 初期値の再読み込み
+    // フェーズ管理（フェーズステートマシン）
+    proceedPhase: () => {
+        const { game, players } = get()
+        const playerCount = players.length
+
+        // プレイヤーがいない場合はなにもしない
+        if (playerCount === 0) return
+
+        const currentPhase = game.phase     // 現在のフェーズ
+        const idx = game.phasePlayerIndex   // 操作中のプレイヤーID
+
+        // フェーズ1(ムードルーレット): この関数では処理しない。フェーズ2へ進む
+        if (currentPhase === 'mood') {
+            set((state) => ({
+                game: {
+                    ...state.game,
+                    phase: 'station',
+                    phasePlayerIndex: null,
+                },
+            }))
+            return
+        }
+
+        // フェーズ2(駅決定): この関数では処理しない。フェーズ3へ進む
+        if (currentPhase === 'station') {
+            set((state) => ({
+                game: {
+                    ...state.game,
+                    phase: 'stationEvent',
+                    phasePlayerIndex: null,
+                },
+            }))
+            return
+        }
+
+        // フェーズ3(駅イベント): フェーズ4に必要な変数を準備して移動
+        if (currentPhase === 'stationEvent') {
+            set((state) => ({
+                game: {
+                    ...state.game,
+                    phase: 'roll',
+                    phasePlayerIndex: 0,    // 最初のプレイヤーをセット
+                    currentDrinks: [],      // リセット
+                },
+            }))
+            return
+        }
+
+        // フェーズ4(杯数抽選):
+        if (currentPhase === 'roll') {
+            // 操作中プレイヤーが見つからない場合は、フェーズをstationEventに戻す（安全処置）
+            if (idx == null) {
+                set((state) => ({
+                    game: { ...state.game, phase: 'stationEvent' },
+                }))
+                return
+            }
+
+            // idx番目のプレイヤーの杯数だけ抽選
+            get().runRollPhaseForPlayer(idx)
+
+            // 抽選が終わったら、そのプレイヤーでフェーズ5(カードドロー)へ進む
+            set((state) => ({
+                game: {
+                    ...state.game,
+                    phase: 'draw',
+                    phasePlayerIndex: idx,
+                },
+            }))
+            return
+        }
+
+        // フェーズ5(カードドロー):
+        if (currentPhase === 'draw') {
+            if (idx == null) {
+                set((state) => ({
+                    game: { ...state.game, phase: 'roll', phasePlayerIndex: 0 },
+                }))
+                return
+            }
+
+            // 現在の操作プレイヤーがカードを引く
+            const stateBefore = get()
+            const player = stateBefore.players[idx]
+            if (player) {
+                stateBefore.drawCard(player.id)
+            }
+
+            // 次の処理分岐
+            if (idx + 1 < playerCount) {
+                // まだ次のプレイヤーがいる場合は、次のプレイヤーのフェーズ4へ移動
+                set((state) => ({
+                    game: {
+                        ...state.game,
+                        phase: 'roll',
+                        phasePlayerIndex: idx + 1,
+                    },
+                }))
+            } else {
+                // 全員の処理が終了した場合は、フェーズ6へ移動
+                set((state) => ({
+                    game: {
+                        ...state.game,
+                        phase: 'useCards',
+                        phasePlayerIndex: 0,
+                    },
+                }))
+            }
+            return
+        }
+
+        // フェーズ6(カード使用):
+        if (currentPhase === 'useCards') {
+            if (idx == null) {
+                set((state) => ({
+                    game: {
+                        ...state.game,
+                        phase: 'progress',
+                        phasePlayerIndex: null,
+                    },
+                }))
+                return
+            }
+
+            // カード操作はUI側で実行する想定するので、ここでは何も処理しない
+            if (idx + 1 < playerCount) {
+                // まだ次のプレイヤーがいる場合は、次のプレイヤーのフェーズ6へ移動
+                set((state) => ({
+                    game: {
+                        ...state.game,
+                        phase: 'useCards',
+                        phasePlayerIndex: idx + 1,
+                    },
+                }))
+            } else {
+                // 全員の処理が終了した場合は、フェーズ7へ移動
+                set((state) => ({
+                    game: {
+                        ...state.game,
+                        phase: 'progress',
+                        phasePlayerIndex: null,
+                    },
+                }))
+            }
+            return
+        }
+
+        // フェーズ7(成長判定): runProgressPhaseでXP/Lv/SPを更新
+        if (currentPhase === 'progress') {
+            get().runProgressPhase()
+            set((state) => ({
+                game: {
+                    ...state.game,
+                    phase: 'result',
+                    phasePlayerIndex: null,
+                },
+            }))
+            return
+        }
+
+        // フェーズ8(結果表示): nextTurnを呼び出してターン移動
+        if (currentPhase === 'result') {
+            get().nextTurn() // phase='mood' / phasePlayerIndex=nullに戻す
+            return
+        }
     },
 
-    // ページ切替
-    setPage: (page) => {
-        set((state) => ({
-            ui: { ...state.ui, currentPage: page }
-        }))
-    },
-
+    
+    // -------------------------------------------------------
+    // フェーズ1: ムードルーレット
+    // -------------------------------------------------------
     spinMood: () => {
         const moods = MOODS
         if (moods.length === 0) return
@@ -208,6 +436,11 @@ export const useGameStore = create<Store>((set, get) => ({
         }))
     },
 
+    setMood: (mood) => set({ game: { ...get().game, mood } }),
+
+    // -------------------------------------------------------
+    // フェーズ2, 3: 駅決定, 駅イベント
+    // -------------------------------------------------------
     // 駅を移動
     moveStation: (steps, direction) => {
         const { game, settings } = get()
@@ -297,74 +530,82 @@ export const useGameStore = create<Store>((set, get) => ({
             }
         })
     },
+    
+    // -------------------------------------------------------
+    // フェーズ4: 杯数抽選
+    // -------------------------------------------------------
+    
+    // runRollPhase: () => {
+    //     const { players, game, settings } = get()
 
-    runRollPhase: () => {
+    //     // プレイヤーがいなければ何もしない
+    //     if (!players || players.length === 0) {
+    //         set((state) => ({
+    //             game: {
+    //                 ...state.game,
+    //                 currentDrinks: [],
+    //             },
+    //         }))
+    //         return
+    //     }
+
+    //     const activePlayer = players[game.activePlayerIndex] ?? null
+    //     const activePlayerId = activePlayer ? activePlayer.id : null
+
+    //     const results: DrinkResult[] = players.map((p) => 
+    //         calcDrinkForPlayer(
+    //             p,
+    //             game.mood,
+    //             game.currentEvent, 
+    //             settings.safety,
+    //             activePlayerId,                
+    //         ),
+    //     )
+
+    //     set((state) => ({
+    //         game: {
+    //             ...state.game,
+    //             currentDrinks: results,
+    //         },
+    //     }))
+    // },
+
+    // 杯数抽選（プレイヤー毎）
+    runRollPhaseForPlayer: (playerIndex: number) => {
         const { players, game, settings } = get()
+        const target = players[playerIndex]
+        if (!target) return
 
-        // プレイヤーがいなければ何もしない
-        if (!players || players.length === 0) {
-            set((state) => ({
-                game: {
-                    ...state.game,
-                    currentDrinks: [],
-                },
-            }))
-            return
-        }
-
+        // 代表プレイヤー判定
         const activePlayer = players[game.activePlayerIndex] ?? null
         const activePlayerId = activePlayer ? activePlayer.id : null
 
-        const results: DrinkResult[] = players.map((p) => 
-            calcDrinkForPlayer(
-                p,
-                game.mood,
-                game.currentEvent, 
-                settings.safety,
-                activePlayerId,                
-            ),
+        const result = calcDrinkForPlayer(
+            target,
+            game.mood,
+            game.currentEvent,
+            settings.safety,
+            activePlayerId,
         )
 
-        set((state) => ({
-            game: {
-                ...state.game,
-                currentDrinks: results,
-            },
-        }))
-    },
-
-    runProgressPhase: () => {
-        const { players, game } = get()
-        const drinks = game.currentDrinks
-
-        if (!players || players.length === 0) {
-            return
-        }
-        if (!drinks || drinks.length === 0) {
-            return
-        }
-
-        // playerID → 今ターン獲得XPのマップを作る
-        const xpMap = new Map<string, number>()
-
-        for (const r of drinks) {
-            const gained = calcTurnXpFromDrinks(r.total)
-            const prev = xpMap.get(r.playerId) ?? 0
-            xpMap.set(r.playerId, prev + gained)
-        }
-
-        // 各プレイヤーにXPを加算し、必要ならレベルアップ&SP加算
-        const updatedPlayers = players.map((p) => {
-            const gainedXp = xpMap.get(p.id) ?? 0
-            if (gainedXp <= 0) return p
-            return applyXpAndLevelUp(p, gainedXp)
+        set((state) => {
+            // 同じplayerIdの結果があれば上書き、なければ追加
+            const others = state.game.currentDrinks.filter(
+                (r) => r.playerId !== result.playerId,
+            )
+            return {
+                game: {
+                    ...state.game,
+                    currentDrinks: [...others, result],
+                },
+            }
         })
-
-        set(() => ({
-            players: updatedPlayers,
-        }))
     },
 
+    
+    // -------------------------------------------------------
+    // フェーズ5: カードドロー
+    // -------------------------------------------------------
     drawCard: (playerId) => {
         set((state) => {
             const players = state.players.map((p) => {
@@ -461,6 +702,44 @@ export const useGameStore = create<Store>((set, get) => ({
         })
     },
 
+    // -------------------------------------------------------    
+    // フェーズ7: 成長判定
+    // -------------------------------------------------------
+    runProgressPhase: () => {
+        const { players, game } = get()
+        const drinks = game.currentDrinks
+
+        if (!players || players.length === 0) {
+            return
+        }
+        if (!drinks || drinks.length === 0) {
+            return
+        }
+
+        // playerID → 今ターン獲得XPのマップを作る
+        const xpMap = new Map<string, number>()
+
+        for (const r of drinks) {
+            const gained = calcTurnXpFromDrinks(r.total)
+            const prev = xpMap.get(r.playerId) ?? 0
+            xpMap.set(r.playerId, prev + gained)
+        }
+
+        // 各プレイヤーにXPを加算し、必要ならレベルアップ&SP加算
+        const updatedPlayers = players.map((p) => {
+            const gainedXp = xpMap.get(p.id) ?? 0
+            if (gainedXp <= 0) return p
+            return applyXpAndLevelUp(p, gainedXp)
+        })
+
+        set(() => ({
+            players: updatedPlayers,
+        }))
+    },
+
+    // -------------------------------------------------------
+    // パッシブスキル関連
+    // -------------------------------------------------------
     unlockPassive: (playerId, passiveId) => {
         const state = get()
         const player = state.players.find((p) => p.id === playerId)
@@ -487,6 +766,6 @@ export const useGameStore = create<Store>((set, get) => ({
 
         set({ players: updatedPlayers })
     },
-    
+
 }))
 

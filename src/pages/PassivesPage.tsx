@@ -3,7 +3,7 @@ import { useGameStore } from '@/store/gameStore'
 import { getPassivesByBranch, hasPassive, canUnlockPassive } from '@/passives'
 
 export function PassivesPages() {
-    const { players, game, setPage, unlockPassive } = useGameStore()
+    const { players, setPage, unlockPassive } = useGameStore()
 
     const branches: ('attack' | 'safe' | 'trick')[] = [
         'attack',

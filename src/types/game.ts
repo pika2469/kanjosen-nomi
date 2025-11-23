@@ -12,14 +12,16 @@ export type Direction = 'cw' | 'ccw'
 
 // フェーズ
 export type Phase =
-    | 'roulette'    // 1. ムードルーレット
-    | 'station'     // 2. 駅決定
-    | 'event'       // 3. 駅イベント
-    | 'draw'        // 4. カードドロー
-    | 'roll'        // 5. 杯数抽選
-    | 'action'      // 6. カード使用
-    | 'progress'    // 7. 成長判定
-    | 'result'      // 8. 結果まとめ
+    | 'mood'            // フェーズ1. ムードルーレット
+    | 'station'         // フェーズ2. 駅決定
+    | 'stationEvent'    // フェーズ3. 駅イベント
+    | 'roll'            // フェーズ4: 杯数抽選（プレイヤー単位）
+    | 'draw'            // フェーズ5: カードドロー（プレイヤー単位）
+    | 'useCards'        // フェーズ6: カード使用（プレイヤー単位）
+    | 'progress'        // フェーズ7: 成長判定
+    | 'result'           // フェーズ8: 結果表示
+    | 'event'           // 3. 駅イベント(デバッグ用)
+    | 'action'          // 6. カード使用（デバッグ用）
 
 // カード系統
 export type CardKind = 'attack' | 'safe' | 'special'
@@ -137,6 +139,10 @@ export type Page =
     | 'minigame'
     | 'passives'
 
+export type UiState = {
+    currentPage: Page
+}
+
 // 各プレイヤーの杯数結果
 export interface DrinkResult {
     playerId: string
@@ -152,7 +158,12 @@ export interface GameStateSlice {
     phase: Phase
     turn: number
     mood: Mood | null   // 未確定の間はnull
-    activePlayerIndex: number   // 代表プレイヤー
+
+    // 代表プレイヤー
+    activePlayerIndex: number
+
+    // 今処理中のプレイヤー(フェーズ4~6でのみ有効)
+    phasePlayerIndex: number | null
     
     // 駅ロジック
     currentStation: StationId | null

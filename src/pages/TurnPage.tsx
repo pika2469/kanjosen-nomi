@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useGameStore } from '@/store/gameStore'
-import { usePhaseController } from '@/features/phase/PhaseController'
+// import { usePhaseController } from '@/features/phase/PhaseController'
 import { getMoodInfo } from '@/constants/mood'
 import { findStation } from '@/stations'
 import { getCardById } from '@/cards'
@@ -11,13 +11,15 @@ export function TurnPage() {
         game, 
         setPage, 
         runStationPhase, 
-        runRollPhase,
-        drawToAll,    
+        runRollPhaseForPlayer,
+        drawToAll,
+        proceedPhase,    
     } = useGameStore()
-    const { phase, proceed } = usePhaseController()
+    // const { phase, proceed } = usePhaseController()
 
     const moodInfo = getMoodInfo(game.mood)
     const activePlayer = players[game.activePlayerIndex]
+    const activePhasePlayer = game.phasePlayerIndex !== null ? players[game.phasePlayerIndex] : null
     const stationInfo = findStation(game.currentStation)
     const event = game.currentEvent
 
@@ -38,7 +40,7 @@ export function TurnPage() {
 
                 <div className="rounded-xl border bg-white p-3 shadow-sm">
                     <div className="text-xs text-gray-500 mb-1">フェーズ</div>
-                    <div className="text-lg font-mono">{phase}</div>
+                    <div className="text-lg font-mono">{game.phase}</div>
                 </div>
 
                 {moodInfo && (
@@ -55,6 +57,13 @@ export function TurnPage() {
                     <div className="text-xs text-gray-500 mb-1">代表プレイヤー</div>
                     <div className="text-base">
                         {activePlayer ? activePlayer.name : '未登録'}
+                    </div>
+                </div>
+
+                <div className="rounded-xl border bg-white p-3 shadow-sm col-span-2">
+                    <div className="text-xs text-gray-500 mb-1">操作中プレイヤー</div>
+                    <div className="text-base">
+                        {activePhasePlayer ? activePhasePlayer.name : '未登録'}
                     </div>
                 </div>
 
@@ -127,7 +136,7 @@ export function TurnPage() {
 
             {/* 通常操作 */}
             <section className="flex flex-wrap gap-2">
-                <Button onClick={proceed}>次フェーズへ</Button>
+                <Button onClick={proceedPhase}>次フェーズへ</Button>
                 <Button variant="outline" onClick={() => setPage('roulette')}>
                     ルーレット画面へ
                 </Button>
@@ -168,7 +177,10 @@ export function TurnPage() {
                 <Button
                     variant="outline"
                     size="sm"
-                    onClick={runRollPhase}
+                    onClick={() => {
+                        const index = game.phasePlayerIndex ?? 0
+                        runRollPhaseForPlayer(index)
+                    }}
                 >
                     杯数を仮抽選する
                 </Button>
