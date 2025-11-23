@@ -12,6 +12,7 @@ export function TurnPage() {
         setPage, 
         runStationPhase, 
         runRollPhaseForPlayer,
+        runRollPhase,
         drawToAll,
         proceedPhase,    
     } = useGameStore()
@@ -179,7 +180,7 @@ export function TurnPage() {
                     size="sm"
                     onClick={() => {
                         const index = game.phasePlayerIndex ?? 0
-                        runRollPhaseForPlayer(index)
+                        runRollPhase()
                     }}
                 >
                     杯数を仮抽選する

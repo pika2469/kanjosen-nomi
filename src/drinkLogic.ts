@@ -1,4 +1,8 @@
 import type { Mood, StationEvent, DrinkResult, Player } from '@/types/game'
+import {
+    hasSafeLighten, hasTrickRandomBoost, hasTrickDualRoll
+} from '@/passives'
+
 
 // ベースロールの上限（暫定で0~5杯想定)
 const MAX_DRINK_BASE = 5
@@ -7,18 +11,70 @@ const MAX_DRINK_BASE = 5
 const MAX_DRINK_SAFETY = 2
 
 // 0~3杯の重み付きベースロール
-function randomBaseDrink(): number {
-    const r = Math.random()
+// function randomBaseDrink(): number {
+//     const r = Math.random()
 
-    if (r < 0.1) {
-        return 0
-    } else if (r < 0.5) {
-        return 1
-    } else if (r < 0.9) {
-        return 2
-    } else {
-        return 3
+//     if (r < 0.1) {
+//         return 0
+//     } else if (r < 0.5) {
+//         return 1
+//     } else if (r < 0.9) {
+//         return 2
+//     } else {
+//         return 3
+//     }
+// }
+
+// 出現させたい値(values)と重み(weights)を渡すと、重いほど出やすいように値をランダムで1つ返す
+// 例: values = [0,1,2,3], weights=[1,4,4,1]なら1と2が出やすい
+function pickWeighted(values: number[], weights: number[]): number {
+    const total = weights.reduce((s, w) => s + w, 0) // weightsの要素の合計
+    const r = Math.random() * total
+    let acc = 0
+    for (let i = 0; i < values.length; i++) {
+        acc += weights[i]
+        if (r <= acc) return values[i]
     }
+    return values[values.length - 1] // 最後まで引っかからなかった場合の保険
+}
+
+// パッシブを考慮したベース杯数ロール
+function rollBaseWithPassives(player: Player): number {
+    const hasSafe = hasSafeLighten(player)
+    const hasTrick = hasTrickRandomBoost(player)
+
+    // デフォルト: 0~3の中で1~2が出やすい分布
+    let weights: number[] = [1, 4, 4, 1]
+
+    if (hasSafe && !hasTrick) {
+        // 防御1段階：軽減補正
+        // 0,1杯が少し増え、2,3杯が少し減る
+        weights = [2, 5, 3, 1]
+
+    } else if (!hasSafe && hasTrick) {
+        // 特殊1段階: ランダム補正
+        // 現状は重み付けのプラス補正のみ。後でバランスは要検討
+        weights = [1, 3, 5, 2]
+
+    } else if (!hasSafe && hasTrick) {
+        // 防御1段階と特殊1段階でパッシブが相反する場合、中央寄りに戻す
+        weights = [1, 4, 4, 1]
+    }
+
+    // 抽選で排出される杯数
+    const values = [0, 1, 2, 3]
+    
+    // ベース杯数ロール決定
+    let base = pickWeighted(values, weights)
+
+    // 特殊3段階目: もう1回ロールして良い方を採用
+    // 現在は「良い方」=「数字が大きい方」としているが、後々ユーザーが結果を選択できるように変更
+    if (hasTrickDualRoll(player)) {
+        const second = pickWeighted(values, weights)
+        base = Math.max(base, second)
+    }
+
+    return base
 }
 
 // ムードによる補正（仮実装）
@@ -109,7 +165,8 @@ export function calcDrinkForPlayer(
     activePlayerId: string | null,
 ): DrinkResult {
 
-    const base = randomBaseDrink()
+    // const base = randomBaseDrink()
+    const base = rollBaseWithPassives(player)
 
     const moodMod = getMoodModifier(mood)
     const eventMod = getEventModifier(event, player.id, activePlayerId)

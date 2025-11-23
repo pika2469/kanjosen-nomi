@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Player, Settings, GameStateSlice, Phase, Mood, Page, UiState, Direction, CardId, PassiveId } from '../types/game'
+import type { Player, Settings, GameStateSlice, Phase, Mood, Page, UiState, Direction, CardId, PassiveId, DrinkResult } from '../types/game'
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
@@ -64,7 +64,7 @@ type Store = {
     runStationPhase: (steps: number, direction: Direction) => void
 
     // 杯数抽選ロジック(roll フェーズ用)
-    // runRollPhase: () => void
+    runRollPhase: () => void
     runRollPhaseForPlayer: (playerIndex: number) => void
 
     // 成長判定
@@ -179,7 +179,7 @@ export const useGameStore = create<Store>((set, get) => ({
         // 1) IndexedDBリセット
         await resetAll()
 
-        // 2) Zustand側のplaers, gameステートを初期化
+        // 2) Zustand側のplayers, gameステートを初期化
         set({
             players: [],
             game: {
@@ -535,40 +535,41 @@ export const useGameStore = create<Store>((set, get) => ({
     // フェーズ4: 杯数抽選
     // -------------------------------------------------------
     
-    // runRollPhase: () => {
-    //     const { players, game, settings } = get()
+    // 杯数抽選（デバッグ用）
+    runRollPhase: () => {
+        const { players, game, settings } = get()
 
-    //     // プレイヤーがいなければ何もしない
-    //     if (!players || players.length === 0) {
-    //         set((state) => ({
-    //             game: {
-    //                 ...state.game,
-    //                 currentDrinks: [],
-    //             },
-    //         }))
-    //         return
-    //     }
+        // プレイヤーがいなければ何もしない
+        if (!players || players.length === 0) {
+            set((state) => ({
+                game: {
+                    ...state.game,
+                    currentDrinks: [],
+                },
+            }))
+            return
+        }
 
-    //     const activePlayer = players[game.activePlayerIndex] ?? null
-    //     const activePlayerId = activePlayer ? activePlayer.id : null
+        const activePlayer = players[game.activePlayerIndex] ?? null
+        const activePlayerId = activePlayer ? activePlayer.id : null
 
-    //     const results: DrinkResult[] = players.map((p) => 
-    //         calcDrinkForPlayer(
-    //             p,
-    //             game.mood,
-    //             game.currentEvent, 
-    //             settings.safety,
-    //             activePlayerId,                
-    //         ),
-    //     )
+        const results: DrinkResult[] = players.map((p) => 
+            calcDrinkForPlayer(
+                p,
+                game.mood,
+                game.currentEvent, 
+                settings.safety,
+                activePlayerId,                
+            ),
+        )
 
-    //     set((state) => ({
-    //         game: {
-    //             ...state.game,
-    //             currentDrinks: results,
-    //         },
-    //     }))
-    // },
+        set((state) => ({
+            game: {
+                ...state.game,
+                currentDrinks: results,
+            },
+        }))
+    },
 
     // 杯数抽選（プレイヤー毎）
     runRollPhaseForPlayer: (playerIndex: number) => {
@@ -618,7 +619,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 }
 
                 // カードを引く処理
-                const newCardId = drawRandomCardId()
+                const newCardId = drawRandomCardId(p)
                 return {
                     ...p,
                     hand: [...p.hand, newCardId],

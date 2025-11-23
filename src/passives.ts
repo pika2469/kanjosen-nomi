@@ -4,7 +4,7 @@ import type { PassiveNode, PassiveId, PassiveBranch, Player } from '@/types/game
 export const PASSIVES: PassiveNode[] = [
     // 攻撃系パッシブ
     {
-        id: 'attack_t1',
+        id: 'atk_boost',
         branch: 'attack',
         tier: 1,
         name: '攻撃Lv1',
@@ -12,27 +12,27 @@ export const PASSIVES: PassiveNode[] = [
         costSp: 1,
     },
     {
-        id: 'attack_t2',
+        id: 'atk_rate_up',
         branch: 'attack',
         tier: 2,
         name: '攻撃Lv2',
         description: '攻撃Lv2パッシブ',
         costSp: 1,
-        requires: ['attack_t1'],
+        requires: ['atk_boost'],
     },
     {
-        id: 'attack_t3',
+        id: 'atk_trigger',
         branch: 'attack',
         tier: 3,
         name: '攻撃Lv3',
         description: '攻撃Lv3パッシブ',
         costSp: 1,
-        requires: ['attack_t2'],
+        requires: ['atk_rate_up'],
     },
 
     // 防御系パッシブ
     {
-        id: 'safe_t1',
+        id: 'safe_lighten',
         branch: 'safe',
         tier: 1,
         name: '防御Lv1',
@@ -40,27 +40,27 @@ export const PASSIVES: PassiveNode[] = [
         costSp: 1,
     },
     {
-        id: 'safe_t2',
+        id: 'safe_rate_up',
         branch: 'safe',
         tier: 2,
         name: '防御Lv2',
         description: '防御Lv2パッシブ',
         costSp: 1,
-        requires: ['safe_t1'],
+        requires: ['safe_lighten'],
     },
     {
-        id: 'safe_t3',
+        id: 'safe_field_shield',
         branch: 'safe',
         tier: 3,
         name: '防御Lv3',
         description: '防御Lv3パッシブ',
         costSp: 1,
-        requires: ['safe_t2'],
+        requires: ['safe_rate_up'],
     },
 
     // トリック系
     {
-        id: 'trick_t1',
+        id: 'trick_random_boost',
         branch: 'trick',
         tier: 1,
         name: 'トリックLv1',
@@ -68,22 +68,22 @@ export const PASSIVES: PassiveNode[] = [
         costSp: 1,
     },
     {
-        id: 'trick_t2',
+        id: 'trick_rate_up',
         branch: 'trick',
         tier: 2,
         name: 'トリックLv2',
         description: 'トリックLv2パッシブ',
         costSp: 1,
-        requires: ['trick_t1'],
+        requires: ['trick_random_boost'],
     },
     {
-        id: 'trick_t3',
+        id: 'trick_dual_roll',
         branch: 'trick',
         tier: 3,
         name: 'トリックLv3',
         description: 'トリックLv3パッシブ',
         costSp: 1,
-        requires: ['trick_t2'],
+        requires: ['trick_rate_up'],
     },
 ]
 
@@ -121,3 +121,17 @@ export function canUnlockPassive(player: Player, node: PassiveNode): boolean {
     // 上記の条件をすべて満たす場合にTrueを返す
     return true
 }
+
+// パッシブ効果毎に関数を定義（将来の拡張性のために個別で用意する）
+export const hasAttackBoost         = (p: Player) => hasPassive(p, 'atk_boost')
+export const hasAttackRateUp        = (p: Player) => hasPassive(p, 'atk_rate_up')
+export const hasAttackTrigger       = (p: Player) => hasPassive(p, 'atk_trigger')
+export const hasSafeLighten         = (p: Player) => hasPassive(p, 'safe_lighten')
+export const hasSafeRateUp          = (p: Player) => hasPassive(p, 'safe_rate_up')
+export const hasSafeFieldShield     = (p: Player) => hasPassive(p, 'safe_field_shield')
+export const hasTrickRandomBoost    = (p: Player) => hasPassive(p, 'trick_random_boost')
+export const hasTrickRateUp         = (p: Player) => hasPassive(p, 'trick_rate_up')
+export const hasTrickDualRoll       = (p: Player) => hasPassive(p, 'trick_dual_roll')
+
+
+

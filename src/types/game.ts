@@ -26,6 +26,9 @@ export type Phase =
 // カード系統
 export type CardKind = 'attack' | 'safe' | 'special'
 
+// カードレアリティ
+export type CardRarity = 'N' | 'R' | 'SR'
+
 // カードID
 export type CardId =
     | 'atk_plus1_single'
@@ -39,6 +42,7 @@ export type CardId =
 export interface Card {
     id: CardId
     kind: CardKind
+    rarity: CardRarity
     name: string
     description: string
 }
@@ -189,15 +193,15 @@ export type PassiveBranch = 'attack' | 'safe' | 'trick'
 
 // パッシブID（攻撃/防御/特殊 x 各3段階)
 export type PassiveId =
-    | 'attack_t1'
-    | 'attack_t2'
-    | 'attack_t3'
-    | 'safe_t1'
-    | 'safe_t2'
-    | 'safe_t3'
-    | 'trick_t1'
-    | 'trick_t2'
-    | 'trick_t3'
+    | 'atk_boost'           // 1段階目:アタック補正+
+    | 'atk_rate_up'         // 2段階目:アタック率up
+    | 'atk_trigger'         // 3段階目:攻撃トリガー
+    | 'safe_lighten'        // 1段階目:軽減補正
+    | 'safe_rate_up'        // 2段階目:セーフ率up
+    | 'safe_field_shield'   // 3段階目:フィールドシールド
+    | 'trick_random_boost'  // 1段階目:ランダム補正
+    | 'trick_rate_up'       // 2段階目:特殊カード率up
+    | 'trick_dual_roll'     // 3段階目:デュアルロール
 
 // パッシブノード定義
 export interface PassiveNode {
