@@ -55,18 +55,6 @@ export interface Settings {
     safety: boolean    // 安全モードON/OFF、ONなら飲みすぎ抑制
 }
 
-// パッシブID（攻撃/防御/特殊 x 各3段階)
-export type PassiveId =
-    | 'attack_t1'
-    | 'attack_t2'
-    | 'attack_t3'
-    | 'safe_t1'
-    | 'safe_t2'
-    | 'safe_t3'
-    | 'trick_t1'
-    | 'trick_t2'
-    | 'trick_t3'
-
 // 駅ID（19駅)
 export type StationId =
     | 'osaka'
@@ -147,6 +135,7 @@ export type Page =
     | 'result'
     | 'settings'
     | 'minigame'
+    | 'passives'
 
 // 各プレイヤーの杯数結果
 export interface DrinkResult {
@@ -180,4 +169,32 @@ export interface GameStateSlice {
 
     // このターンにカード使用が禁止されているプレイヤーID（なければnull）
     cardUsageBlockedForPlayerId: string | null
+}
+
+// パッシブ関連 -----------------------------------------------------
+
+// パッシブ系統（とりあえず3枝）
+export type PassiveBranch = 'attack' | 'safe' | 'trick'
+
+// パッシブID（攻撃/防御/特殊 x 各3段階)
+export type PassiveId =
+    | 'attack_t1'
+    | 'attack_t2'
+    | 'attack_t3'
+    | 'safe_t1'
+    | 'safe_t2'
+    | 'safe_t3'
+    | 'trick_t1'
+    | 'trick_t2'
+    | 'trick_t3'
+
+// パッシブノード定義
+export interface PassiveNode {
+    id: PassiveId
+    branch: PassiveBranch
+    tier: number    // 段: 上に行くほど強い
+    name: string    // 表示名
+    description: string
+    costSp: number  // 必要SP
+    requires?: PassiveId[]    // 前提パッシブ（なければundefined)
 }

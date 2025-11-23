@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction, DrinkResult, PlayerStyle, CardId } from '../types/game'
+import type { Player, Settings, GameStateSlice, Phase, Mood, Page, Direction, DrinkResult, PlayerStyle, CardId, PassiveId } from '../types/game'
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
@@ -8,6 +8,7 @@ import { pickStationEvent } from '@/stationEvents'
 import { calcDrinkForPlayer } from '@/drinkLogic'
 import { applyXpAndLevelUp, calcTurnXpFromDrinks } from '@/xpLogic'
 import { drawRandomCardId } from '@/cards'
+import { getPassiveId, canUnlockPassive } from '@/passives'
 
 // Store型の定義
 type Store = {
@@ -69,6 +70,9 @@ type Store = {
     drawToAll: () => void
     clearHands: () => void
     useCard: (playerId: string, cardId: CardId) => void
+
+    // パッシブ関連
+    unlockPassive: (playerId: string, passiveId: PassiveId) => void
 }
 
 // Zustandストア本体
@@ -455,6 +459,34 @@ export const useGameStore = create<Store>((set, get) => ({
                 game: updateGame,
             }
         })
-    }
+    },
+
+    unlockPassive: (playerId, passiveId) => {
+        const state = get()
+        const player = state.players.find((p) => p.id === playerId)
+        if (!player) return
+
+        const node = getPassiveId(passiveId)
+        if (!node) return
+
+        // アンロック条件を満たさない場合は処理スキップ
+        if (!canUnlockPassive(player, node)) {
+            return
+        }
+
+        // アンロック
+        const updatedPlayers = state.players.map((p) => {
+            if (p.id !== playerId) return p
+
+            return {
+                ...p,
+                sp: p.sp - node.costSp,
+                passives: [...p.passives, node.id],
+            }
+        })
+
+        set({ players: updatedPlayers })
+    },
+    
 }))
 

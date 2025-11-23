@@ -73,6 +73,16 @@ export function HomePage() {
                     本番環境ではこのボタンは削除予定
                 </p>
             </section>
+
+            <section className="border-t pt-4">
+                    <Button
+                        className="w-full py-2 text-sm"
+                        variant="outline"
+                        onClick={() => setPage('passives')}
+                    >
+                        パッシブツリー(SP管理)
+                    </Button>    
+            </section>
             
         </div>
     )
