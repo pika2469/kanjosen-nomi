@@ -7,7 +7,7 @@ import { getNextStationId } from '@/utils'
 import { pickStationEvent } from '@/stationEvents'
 import { calcDrinkForPlayer } from '@/drinkLogic'
 import { applyXpAndLevelUp, calcTurnXpFromDrinks } from '@/xpLogic'
-import { drawRandomCardId } from '@/cards'
+import { drawRandomCardId, getCardById } from '@/cards'
 import { getPassiveId, canUnlockPassive } from '@/passives'
 
 // Store型の定義
@@ -658,49 +658,148 @@ export const useGameStore = create<Store>((set, get) => ({
         })
     },
 
-    useCard: (playerId, cardId) => {
-        const { game } = get()
+    useCard: (playerId: string, cardId: CardId) => {
+        const stateBefore = get()
+        const card = getCardById(cardId)
+        if (!card) return
 
         // このターンカード使用禁止なら何もしない
-        if (game.cardUsageBlockedForPlayerId === playerId) {
+        if (stateBefore.game.cardUsageBlockedForPlayerId === playerId) {
             return 
         }
-        
-        set((state) => {
-            const players = state.players.map((p) => {
-                if (p.id !== playerId) return p
 
-                // 手札にこのカードがあるか確認
-                const idx = p.hand.indexOf(cardId)
-                if (idx === -1) {
-                    return p
-                }
+        // 処理対象のプレイヤーを取得
+        const player = stateBefore.players.find((p) => p.id === playerId)
+        if (!player) return
 
-                // 先頭の1枚だけ使用
-                const newHand = [...p.hand]
-                newHand.splice(idx, 1)
+        // まず手札からカードを取り除く
+        let updatedPlayers = stateBefore.players.map((p) => {
+            if (p.id !== playerId) return p
+            const idx = p.hand.indexOf(cardId)
+            if (idx === -1) return p
 
-                return {
-                    ...p,
-                    hand: newHand,
-                }
-            })
-
-            const updateGame = {
-                ...state.game,
-                lastUsedCard: {
-                    playerId,
-                    cardId,
-                    usedAtTurn: state.game.turn,
-                },
-            }
+            const newHand = [...p.hand]
+            newHand.splice(idx, 1) // handのidx番目のカードを取り除く
 
             return {
-                ...state,
-                players,
-                game: updateGame,
+                ...p,
+                hand: newHand,
             }
         })
+
+        // currentDrinksをベースにカード効果を適用
+        let updatedDrinks = [...stateBefore.game.currentDrinks]
+
+        // 引数1: targetPlayerId...対象のプレイヤー
+        // 引数2: コールバック関数 updater ... dとplayerを引数に、変化させたDrinkResult型を返す
+        const applyToDrink = (
+            targetPlayerId: string,
+            updater: (d: DrinkResult, player: Player) => DrinkResult,
+        ) => {
+            const tPlayer = updatedPlayers.find((p) => p.id === targetPlayerId)
+            if (!tPlayer) return
+
+            const existing = updatedDrinks.find(
+                (d) => d.playerId === targetPlayerId,
+            )
+            if (!existing) {
+                // まだ杯数抽選されていない場合は何も行わない
+                return
+            }
+
+            updatedDrinks = updatedDrinks.map((d) =>
+                d.playerId === targetPlayerId ? updater(d, tPlayer) : d,
+            )
+        }
+
+        // カードごとの効果分岐
+        switch (card.id) {
+            case 'safe_non_alcohol': {
+                // ノンアル券：このターン杯数0固定
+                applyToDrink(playerId, (d) => ({
+                    ...d,
+                    final: 0,
+                }))
+                break
+            }
+
+            case 'safe_hitoyasumi': {
+                // ひとやすみ：自分-1杯(下限Liまで)
+                applyToDrink(playerId, (d, p) => {
+                    const next = d.final - 1
+                    const min = p.Li ?? 0
+                    return {
+                        ...d,
+                        final: next < min ? min : next,
+                    }
+                })
+                break
+            }
+
+            case 'sp_reverse': {
+                // リバース：全員の最終杯数を反転
+                updatedDrinks = updatedDrinks.map((d) => {
+                    const v = d.final
+                    let next = v
+                    if (v === 1) next = 5
+                    else if (v === 2) next = 4
+                    else if (v === 4) next = 2
+                    else if (v === 5) next = 1
+
+                    return {
+                        ...d,
+                        final: next,
+                    }
+                })
+                break
+            }
+
+            case 'sp_reroll': {
+                // リロール：自分の杯数を再抽選
+                const { game, settings } = stateBefore
+
+                // カード使用プレイヤーが代表プレイヤーかどうか判断
+                const active = stateBefore.players[game.activePlayerIndex]
+                const activeId = active ? active.id : null
+                
+                // カード使用プレイヤーに対して、再抽選を実行
+                const newResult = calcDrinkForPlayer(
+                    player,
+                    game.mood,
+                    game.currentEvent,
+                    settings.safety,
+                    activeId,
+                )
+                
+                // カードを使ったプレイヤーのみ最終杯数を置き換える
+                updatedDrinks = updatedDrinks.map((d) =>
+                    d.playerId === playerId ? newResult : d,
+                )
+                break
+            }
+
+            default:
+                // それ以外のカードは今のところ「効果なし」で消費だけ行う
+                break
+        }
+
+        // lastUseCardの更新
+        const updatedGame = {
+            ...stateBefore.game,
+            currentDrinks: updatedDrinks,
+            lastUsedCard: {
+                playerId,
+                cardId,
+                usedAtTurn: stateBefore.game.turn,
+            },
+        }
+
+        set({
+            ...stateBefore,
+            players: updatedPlayers,
+            game: updatedGame,
+        })
+    
     },
 
     // -------------------------------------------------------    
@@ -721,7 +820,7 @@ export const useGameStore = create<Store>((set, get) => ({
         const xpMap = new Map<string, number>()
 
         for (const r of drinks) {
-            const gained = calcTurnXpFromDrinks(r.total)
+            const gained = calcTurnXpFromDrinks(r.final)
             const prev = xpMap.get(r.playerId) ?? 0
             xpMap.set(r.playerId, prev + gained)
         }

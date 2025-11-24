@@ -1,54 +1,121 @@
-import type { Card, CardId, Player } from '@/types/game'
+import type { Card, CardId, CardKind, CardRarity, Player } from '@/types/game'
 import {
     hasAttackRateUp,
     hasSafeRateUp,
     hasTrickRateUp,
+    hasTrickChaos,
 } from '@/passives'
 
 
-// 仮でカード定義。効果ロジックは後で実装
+// カード一覧（とりあえず主要カードのみ）
 export const CARDS: Card[] = [
+    // アタック系
     {
-        id: 'atk_plus1_single',
+        id: 'atk_hitokuchi_plus',
         kind: 'attack',
         rarity: 'N',
-        name: '+1券(指名)',
-        description: '任意の1人に+1杯',
+        name: 'ひとくちプラス',
+        description: '自分以外のランダム1人に+1杯',
     },
     {
-        id: 'atk_plus1_all',
+        id: 'atk_michizure_plus',
+        kind: 'attack',
+        rarity: 'N',
+        name: '道連れプラス',
+        description: '自分とランダム1人が+1杯',
+    },
+    {
+        id: 'atk_minna_de_kanpai',
         kind: 'attack',
         rarity: 'R',
-        name: '+1券(全体)',
-        description: '全員+1杯',
+        name: 'みんなで乾杯',
+        description: '全員が+1杯',
     },
     {
-        id: 'safe_minus1_self',
-        kind: 'safe',
-        rarity: 'N',
-        name: '軽減券',
-        description: '自分の杯数-1杯',
+        id: 'atk_shoot',
+        kind: 'attack',
+        rarity: 'R',
+        name: '狙い撃ち',
+        description: '指定1名は今ターン杯数を再抽選(ロジックは未実装)',
     },
     {
-        id: 'safe_noalcohol',
+        id: 'atk_field_break',
+        kind: 'attack',
+        rarity: 'SR',
+        name: 'フィールドブレイク',
+        description: '今ターン全員のセーフカード効果を無効化(ロジックは未実装)',
+    },
+    // セーフ系
+    {
+        id: 'safe_non_alcohol',
         kind: 'safe',
         rarity: 'SR',
         name: 'ノンアル券',
-        description: 'このターンは実質0杯',
+        description: 'このターン杯数0固定',
     },
     {
-        id: 'sp_reroll_mood',
-        kind: 'special',
+        id: 'safe_hitoyasumi',
+        kind: 'safe',
+        rarity: 'N',
+        name: 'ひとやすみ',
+        description: '自分の杯数を-1杯',
+    },
+    {
+        id: 'safe_karume',
+        kind: 'safe',
         rarity: 'R',
-        name: 'ムード再抽選',
-        description: 'ムードルーレットを引き直す',
+        name: '軽めにいくわ',
+        description: '自分-2杯,次ターン杯数抽選上昇(ロジックは未実装)',
     },
     {
-        id: 'sp_reroll_drink',
+        id: 'safe_slue_guard',
+        kind: 'safe',
+        rarity: 'R',
+        name: 'スルーガード',
+        description: '加算を自分だけ無効化(ロジックは未実装)',
+    },
+    {
+        id: 'safe_yukkuri_mode',
+        kind: 'safe',
+        rarity: 'R',
+        name: 'ゆっくりモード',
+        description: '杯数抽選が下限寄りになる(ロジックは未実装)',
+    },
+    // スペシャル系
+    {
+        id: 'sp_reroll',
         kind: 'special',
         rarity: 'N',
-        name: '杯数最抽選',
-        description: '自分の杯数を振り直せる',
+        name: 'リロール',
+        description: '自分の杯数を再抽選',
+    },
+    {
+        id: 'sp_draw_plus1',
+        kind: 'special',
+        rarity: 'N',
+        name: 'ドロー+1',
+        description: '次ターンのカードドロー+1枚(ロジックは未実装)',
+    },
+    {
+        id: 'sp_mood_break',
+        kind: 'special',
+        rarity: 'R',
+        name: 'ムードブレイク',
+        description: '駅イベント補正を無効化(ロジックは未実装)',
+    },
+    {
+        id: 'sp_random_change',
+        kind: 'special',
+        rarity: 'N',
+        name: 'ランダムチェンジ',
+        description: 'ランダム2名の杯数を入れ替える(ロジックは未実装)',
+    },
+    {
+        id: 'sp_reverse',
+        kind: 'attack',
+        rarity: 'SR',
+        name: 'リバース',
+        description: '全員の最終杯数を反転(1⇔5, 2⇔4, 3⇔3)',
     },
 ]
 

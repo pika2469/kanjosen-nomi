@@ -19,7 +19,7 @@ export type Phase =
     | 'draw'            // フェーズ5: カードドロー（プレイヤー単位）
     | 'useCards'        // フェーズ6: カード使用（プレイヤー単位）
     | 'progress'        // フェーズ7: 成長判定
-    | 'result'           // フェーズ8: 結果表示
+    | 'result'          // フェーズ8: 結果表示
     | 'event'           // 3. 駅イベント(デバッグ用)
     | 'action'          // 6. カード使用（デバッグ用）
 
@@ -31,12 +31,21 @@ export type CardRarity = 'N' | 'R' | 'SR'
 
 // カードID
 export type CardId =
-    | 'atk_plus1_single'
-    | 'atk_plus1_all'
-    | 'safe_minus1_self'
-    | 'safe_noalcohol'
-    | 'sp_reroll_mood'
-    | 'sp_reroll_drink'
+    | 'atk_hitokuchi_plus'
+    | 'atk_michizure_plus'
+    | 'atk_minna_de_kanpai'
+    | 'atk_shoot'
+    | 'atk_field_break'
+    | 'safe_non_alcohol'
+    | 'safe_hitoyasumi'
+    | 'safe_karume'
+    | 'safe_slue_guard'
+    | 'safe_yukkuri_mode'
+    | 'sp_reroll'
+    | 'sp_draw_plus1'
+    | 'sp_mood_break'
+    | 'sp_random_change'
+    | 'sp_reverse'
 
 // カード定義
 export interface Card {
@@ -150,7 +159,7 @@ export type UiState = {
 // 各プレイヤーの杯数結果
 export interface DrinkResult {
     playerId: string
-    total: number       // 最終杯数
+    final: number       // 最終杯数
     base: number        // ベースロール
     moodMod: number     // ムード補正（後で調整）
     eventMod: number    // 駅イベント補正（後で調整）
@@ -191,15 +200,18 @@ export interface GameStateSlice {
 // パッシブ系統（とりあえず3枝）
 export type PassiveBranch = 'attack' | 'safe' | 'trick'
 
-// パッシブID（攻撃/防御/特殊 x 各3段階)
+// パッシブID(v1.4仕様)
 export type PassiveId =
-    | 'atk_boost'           // 1段階目:アタック補正+
+    // 攻撃ツリー
+    | 'atk_tease'           // 1段階目:煽り上手
     | 'atk_rate_up'         // 2段階目:アタック率up
     | 'atk_trigger'         // 3段階目:攻撃トリガー
+    // 防御ツリー
     | 'safe_lighten'        // 1段階目:軽減補正
     | 'safe_rate_up'        // 2段階目:セーフ率up
     | 'safe_field_shield'   // 3段階目:フィールドシールド
-    | 'trick_random_boost'  // 1段階目:ランダム補正
+    // 特殊ツリー
+    | 'trick_chaos'         // 1段階目:カオスカード
     | 'trick_rate_up'       // 2段階目:特殊カード率up
     | 'trick_dual_roll'     // 3段階目:デュアルロール
 

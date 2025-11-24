@@ -177,12 +177,12 @@ export function calcDrinkForPlayer(
     // 上限はセーフティONの場合少し低めにする
     const maxCap = safety ? MAX_DRINK_SAFETY : MAX_DRINK_BASE
     
-    const total = clamp(rawTotal, player.Li, maxCap)
+    const final = clamp(rawTotal, player.Li, maxCap)
 
 
     return {
         playerId: player.id,
-        total,
+        final,
         base,
         moodMod,
         eventMod,
