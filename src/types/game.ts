@@ -133,6 +133,8 @@ export interface Player {
     handSizeMax : number    // 手札上限、2~3枚の範囲で変動
     passives: PassiveId[]   // 取得済みパッシブID
     hand: CardId[]  // 手札
+    nextTurnExtraDraw: number   // 次のターンのカードドロー枚数を+nするためのバッファ
+    nextTurnPlusBias: boolean   // 次のターンの杯数ロールを「+側寄り」にする一時フラグ
 }
 
 // IndexedDBに永続保存する対象データ。復元にも使用
@@ -214,6 +216,9 @@ export type PassiveId =
     | 'trick_chaos'         // 1段階目:カオスカード
     | 'trick_rate_up'       // 2段階目:特殊カード率up
     | 'trick_dual_roll'     // 3段階目:デュアルロール
+
+    // デバッグ用（後で消す）
+    | 'trick_random_boost'
 
 // パッシブノード定義
 export interface PassiveNode {

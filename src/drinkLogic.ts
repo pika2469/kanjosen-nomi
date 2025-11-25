@@ -38,10 +38,11 @@ function pickWeighted(values: number[], weights: number[]): number {
     return values[values.length - 1] // 最後まで引っかからなかった場合の保険
 }
 
-// パッシブを考慮したベース杯数ロール
+// パッシブ+一時バフを考慮したベース杯数ロール
 function rollBaseWithPassives(player: Player): number {
     const hasSafe = hasSafeLighten(player)
     const hasTrick = hasTrickRandomBoost(player)
+    const plusBias = player.nextTurnPlusBias ?? false
 
     // デフォルト: 0~3の中で1~2が出やすい分布
     let weights: number[] = [1, 4, 4, 1]
@@ -59,6 +60,17 @@ function rollBaseWithPassives(player: Player): number {
     } else if (!hasSafe && hasTrick) {
         // 防御1段階と特殊1段階でパッシブが相反する場合、中央寄りに戻す
         weights = [1, 4, 4, 1]
+    }
+
+    // 一時バフ：+側バイアス
+    // 2,3 杯を少しだけ重くするイメージ
+    if (plusBias) {
+        weights = [
+            weights[0],
+            weights[1],
+            weights[2] * 1.2,
+            weights[3] * 1.4,
+        ]
     }
 
     // 抽選で排出される杯数

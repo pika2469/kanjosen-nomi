@@ -85,6 +85,16 @@ export const PASSIVES: PassiveNode[] = [
         costSp: 1,
         requires: ['trick_rate_up'],
     },
+
+    // デバッグ用（後で消す）
+    {
+        id: 'trick_random_boost',
+        branch: 'trick',
+        tier: 1,
+        name: 'トリックLv1',
+        description: 'トリックLv1: カオスカード',
+        costSp: 1,
+    },
 ]
 
 export function getPassiveId(id: PassiveId): PassiveNode | null {
@@ -133,5 +143,7 @@ export const hasTrickChaos          = (p: Player) => hasPassive(p, 'trick_chaos'
 export const hasTrickRateUp         = (p: Player) => hasPassive(p, 'trick_rate_up')
 export const hasTrickDualRoll       = (p: Player) => hasPassive(p, 'trick_dual_roll')
 
+// デバッグ用（後で消す）
+export const hasTrickRandomBoost    = (p: Player) => hasPassive(p, 'trick_random_boost')
 
 

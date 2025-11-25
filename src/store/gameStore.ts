@@ -153,6 +153,8 @@ export const useGameStore = create<Store>((set, get) => ({
             handSizeMax: 2,
             passives: [],
             hand: [],
+            nextTurnExtraDraw: 0,
+            nextTurnPlusBias: false,
         }
         set((state) => ({
             players: [...state.players, p],
@@ -326,7 +328,27 @@ export const useGameStore = create<Store>((set, get) => ({
             const stateBefore = get()
             const player = stateBefore.players[idx]
             if (player) {
+                const extra = player.nextTurnExtraDraw ?? 0 // nextTurnExtraDrawはnumber型
+
+                // ベースの1ドロー
                 stateBefore.drawCard(player.id)
+
+                // 追加ドロー
+                if (extra > 0) {
+                    for (let i = 0; i < extra; i++) {
+                        stateBefore.drawCard(player.id)
+                    }
+
+                    // 追加ドローが終わったらnextTurnExtraDrawを0に戻す
+                    set((state) => ({
+                        ...state,
+                        players: state.players.map((p, pIdx) =>
+                            pIdx === idx
+                            ? { ...p, nextTurnExtraDraw: 0 }
+                            : p,
+                        ),
+                    }))
+                }
             }
 
             // 次の処理分岐
@@ -594,7 +616,16 @@ export const useGameStore = create<Store>((set, get) => ({
             const others = state.game.currentDrinks.filter(
                 (r) => r.playerId !== result.playerId,
             )
+
+            // nextTurnPlusBias一時フラグを初期化
+            const newPlayers = state.players.map((p, idx) =>
+                idx === playerIndex
+                ? { ...p, nextTurnPlusBias: false }
+                : p,
+            )
+
             return {
+                players: newPlayers,
                 game: {
                     ...state.game,
                     currentDrinks: [...others, result],
@@ -673,17 +704,34 @@ export const useGameStore = create<Store>((set, get) => ({
         if (!player) return
 
         // まず手札からカードを取り除く
+        // 次ターン用のフラグを更新
         let updatedPlayers = stateBefore.players.map((p) => {
             if (p.id !== playerId) return p
-            const idx = p.hand.indexOf(cardId)
-            if (idx === -1) return p
 
             const newHand = [...p.hand]
-            newHand.splice(idx, 1) // handのidx番目のカードを取り除く
+            const idx = newHand.indexOf(cardId)
+            if (idx >= 0) newHand.splice(idx, 1) // handのidx番目のカードを取り除く
+    
+            let nextTurnExtraDraw = p.nextTurnExtraDraw
+            let nextTurnPlusBias = p.nextTurnPlusBias
 
+            switch (card.id) {
+                case 'sp_draw_plus1':
+                    // 次ターンのドロー+1
+                    nextTurnExtraDraw = (nextTurnExtraDraw ?? 0) + 1
+                    break
+                
+                case 'safe_karume':
+                    // 軽めにいくわ → 次ターンの+側バイアスを付与
+                    nextTurnPlusBias = true
+                    break
+            }
+            
             return {
                 ...p,
                 hand: newHand,
+                nextTurnExtraDraw,
+                nextTurnPlusBias,
             }
         })
 
@@ -775,6 +823,24 @@ export const useGameStore = create<Store>((set, get) => ({
                 updatedDrinks = updatedDrinks.map((d) =>
                     d.playerId === playerId ? newResult : d,
                 )
+                break
+            }
+
+            case 'safe_karume': {
+                // 軽めにいくわ：このターン-2杯(下限Liまで)
+                applyToDrink(playerId, (d, p) => {
+                    const min = p.Li ?? 0
+                    const next = Math.max(min, d.final - 2)
+                    return {
+                        ...d,
+                        final: next,
+                    }
+                })
+                break
+            }
+
+            case 'sp_draw_plus1': {
+                // ドロー+1：次のターンのドロー+1枚。今ターンの杯数には影響しないので何もしない
                 break
             }
 
