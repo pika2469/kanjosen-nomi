@@ -217,9 +217,6 @@ export type PassiveId =
     | 'trick_rate_up'       // 2段階目:特殊カード率up
     | 'trick_dual_roll'     // 3段階目:デュアルロール
 
-    // デバッグ用（後で消す）
-    | 'trick_random_boost'
-
 // パッシブノード定義
 export interface PassiveNode {
     id: PassiveId

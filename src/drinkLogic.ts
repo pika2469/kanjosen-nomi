@@ -1,6 +1,6 @@
 import type { Mood, StationEvent, DrinkResult, Player } from '@/types/game'
 import {
-    hasSafeLighten, hasTrickRandomBoost, hasTrickDualRoll
+    hasSafeLighten, hasTrickDualRoll, hasSafeFieldShield
 } from '@/passives'
 
 
@@ -9,21 +9,6 @@ const MAX_DRINK_BASE = 5
 
 // 安全側の上限（セーフティON時に使う）
 const MAX_DRINK_SAFETY = 2
-
-// 0~3杯の重み付きベースロール
-// function randomBaseDrink(): number {
-//     const r = Math.random()
-
-//     if (r < 0.1) {
-//         return 0
-//     } else if (r < 0.5) {
-//         return 1
-//     } else if (r < 0.9) {
-//         return 2
-//     } else {
-//         return 3
-//     }
-// }
 
 // 出現させたい値(values)と重み(weights)を渡すと、重いほど出やすいように値をランダムで1つ返す
 // 例: values = [0,1,2,3], weights=[1,4,4,1]なら1と2が出やすい
@@ -39,31 +24,21 @@ function pickWeighted(values: number[], weights: number[]): number {
 }
 
 // パッシブ+一時バフを考慮したベース杯数ロール
-function rollBaseWithPassives(player: Player): number {
+export function rollBaseWithPassives(player: Player): number {
     const hasSafe = hasSafeLighten(player)
-    const hasTrick = hasTrickRandomBoost(player)
+    const dual = hasTrickDualRoll(player)
     const plusBias = player.nextTurnPlusBias ?? false
 
-    // デフォルト: 0~3の中で1~2が出やすい分布
+    // 基本分布: 0~3の中で1~2が出やすい
     let weights: number[] = [1, 4, 4, 1]
 
-    if (hasSafe && !hasTrick) {
-        // 防御1段階：軽減補正
-        // 0,1杯が少し増え、2,3杯が少し減る
+    // ---- 防御ツリー1段階：軽減補正（下限寄り） ----
+    // 0,1杯が少し増え、2,3杯が少し減る
+    if (hasSafe) {
         weights = [2, 5, 3, 1]
-
-    } else if (!hasSafe && hasTrick) {
-        // 特殊1段階: ランダム補正
-        // 現状は重み付けのプラス補正のみ。後でバランスは要検討
-        weights = [1, 3, 5, 2]
-
-    } else if (!hasSafe && hasTrick) {
-        // 防御1段階と特殊1段階でパッシブが相反する場合、中央寄りに戻す
-        weights = [1, 4, 4, 1]
     }
 
-    // 一時バフ：+側バイアス
-    // 2,3 杯を少しだけ重くするイメージ
+    // ---- 【セーフカード】軽めにいくわ：＋側寄り ----
     if (plusBias) {
         weights = [
             weights[0],
@@ -73,15 +48,15 @@ function rollBaseWithPassives(player: Player): number {
         ]
     }
 
+    // ---- 特殊ツリー3段階：デュアルロール ----
     // 抽選で排出される杯数
     const values = [0, 1, 2, 3]
-    
+
     // ベース杯数ロール決定
     let base = pickWeighted(values, weights)
 
-    // 特殊3段階目: もう1回ロールして良い方を採用
     // 現在は「良い方」=「数字が大きい方」としているが、後々ユーザーが結果を選択できるように変更
-    if (hasTrickDualRoll(player)) {
+    if (dual) {
         const second = pickWeighted(values, weights)
         base = Math.max(base, second)
     }
@@ -112,25 +87,33 @@ function getEventModifier(
     event: StationEvent | null,
     playerId: string,
     activePlayerId: string | null,
+    players?: Player[],
 ): number {
     if (!event || !activePlayerId) return 0
 
     const isRep = playerId === activePlayerId
 
+    const player = players?.find((p) => p.id === playerId)
+    const hasShield = player ? hasSafeFieldShield(player) : false
+
     switch (event.id) {
         
         // '繁華街'
         case 'downtown_rep_plus2_others_plus1':
-            // 全員+1 + 代表さらに+1
+            // 全員+1 + 代表さらに+1、ただしシールド持ちは無効
+            if (hasShield) return 0
             return isRep ? 2 : 1
+
         case 'downtown_all_plus1':
-            // 全員+1
+            // 全員+1、ただしシールド持ちは無効
+            if (hasShield) return 0
             return 1
         
         // '水辺'
         case 'waterside_others_minus1':
             // 代表以外の全員-1
             return isRep ? 0 : -1
+
         case 'waterside_rep_minus1':
             // 代表のみ-1
             return isRep ? -1 : 0
@@ -139,6 +122,7 @@ function getEventModifier(
         case 'shitamachi_all_plus1':
             // 全員+1
             return 1
+
         case 'shitamachi_rep_plus1':
             // 代表のみ+1
             return isRep ? 1 : 0
@@ -175,13 +159,21 @@ export function calcDrinkForPlayer(
     event: StationEvent | null,
     safety: boolean,
     activePlayerId: string | null,
+    players: Player[],
 ): DrinkResult {
 
-    // const base = randomBaseDrink()
     const base = rollBaseWithPassives(player)
 
     const moodMod = getMoodModifier(mood)
-    const eventMod = getEventModifier(event, player.id, activePlayerId)
+
+    // 駅イベント
+    const eventMod = getEventModifier(
+        event, 
+        player.id, 
+        activePlayerId,
+        players,
+    )
+
     const passiveMod = getPassiveModifier(player)
 
     const rawTotal = base + moodMod + eventMod + passiveMod

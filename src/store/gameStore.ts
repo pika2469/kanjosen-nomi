@@ -581,7 +581,8 @@ export const useGameStore = create<Store>((set, get) => ({
                 game.mood,
                 game.currentEvent, 
                 settings.safety,
-                activePlayerId,                
+                activePlayerId,
+                players,                
             ),
         )
 
@@ -609,6 +610,7 @@ export const useGameStore = create<Store>((set, get) => ({
             game.currentEvent,
             settings.safety,
             activePlayerId,
+            players,
         )
 
         set((state) => {
@@ -804,7 +806,7 @@ export const useGameStore = create<Store>((set, get) => ({
 
             case 'sp_reroll': {
                 // リロール：自分の杯数を再抽選
-                const { game, settings } = stateBefore
+                const { game, settings, players } = stateBefore
 
                 // カード使用プレイヤーが代表プレイヤーかどうか判断
                 const active = stateBefore.players[game.activePlayerIndex]
@@ -817,6 +819,7 @@ export const useGameStore = create<Store>((set, get) => ({
                     game.currentEvent,
                     settings.safety,
                     activeId,
+                    players,
                 )
                 
                 // カードを使ったプレイヤーのみ最終杯数を置き換える
