@@ -1,4 +1,4 @@
-import type { Card, CardId, CardKind, CardRarity, Player } from '@/types/game'
+import type { Card, CardId, Player } from '@/types/game'
 import {
     hasAttackRateUp,
     hasSafeRateUp,
@@ -125,31 +125,38 @@ export function getCardById(id: CardId | null | undefined): Card | null {
     return CARDS.find((c) => c.id === id) ?? null
 }
 
-// レアリティごとの基本重み
-function rarityWeight(rarity: Card['rarity']): number {
-    switch (rarity) {
-        case 'N':
-            return 1
-        case 'R':
-            return 0.5
-        case 'SR':
-            return 0.2
-        default:
-            return 1
-    }
+// カードタイプごとに出現率に重みを付ける関数
+function getKindWeights(player: Player) {
+    let attack = 1
+    let safe = 1
+    let special = 1
+
+    // パッシブ補正
+    if (hasAttackRateUp(player)) attack *= 1.2
+    if (hasSafeRateUp(player)) safe *= 1.2
+    if (hasTrickRateUp(player)) special *= 1.2
+
+    return { attack, safe, special }
 }
 
-// 重みを考慮して値を1つ返す
-// weightsは各カードの出現重み、例えばweights = [1, 0.5, 0.2, 1.2, 1]
-function pickWeightedIndex(weights: number[]): number {
-    const total = weights.reduce((s, w) => s + w, 0)
-    const r = Math.random() * total
-    let acc = 0
-    for (let i = 0; i < weights.length; i++) {
-        acc += weights[i]
-        if (r <= acc) return i
+// レアリティごとの重み
+function getRarityWeights(player: Player) {
+    const chaos = hasTrickChaos(player)
+
+    if (!chaos) {
+        return {
+            N: 70,
+            R: 20,
+            SR: 10,
+        }
     }
-    return weights.length -1
+
+    // カオスカード(特殊ツリー1段階)
+    return {
+        N: 60,
+        R: 25,
+        SR: 15,
+    }
 }
 
 
@@ -159,28 +166,43 @@ function pickWeightedIndex(weights: number[]): number {
 //     return CARDS[idx].id
 // }
 
-export function drawRandomCardId(player?: Player): CardId {
-    // 系統ごと基本重み
-    let wAttack = 1
-    let wSafe = 1
-    let wSpecial = 1
+export function drawRandomCardId(player: Player): CardId {
+    const kindW = getKindWeights(player) // スキル重み
+    const rarityW = getRarityWeights(player) // パッシブ重み
 
-    if (player) {
-        if (hasAttackRateUp(player)) wAttack += 0.2 // +20%
-        if (hasSafeRateUp(player)) wSafe += 0.2
-        if (hasTrickRateUp(player)) wSpecial += 0.2
+    // kind x rarityの総合重みを計算
+    // weightedPoolは空の配列：カード1枚と、その重みを入れる箱
+    const weightedPool: { card: Card; weight: number }[] = []
+
+    for (const c of CARDS) {
+        const kw =
+            c.kind === 'attack' 
+            ? kindW.attack
+            : c.kind === 'safe'
+            ? kindW.safe
+            : kindW.special
+        
+        const rw = rarityW[c.rarity]
+
+        const weight = kw * rw
+
+        weightedPool.push({ card: c, weight })
     }
 
-    const weights = CARDS.map((card) => {
-        const kindWeight =
-            card.kind === 'attack'
-                ? wAttack
-                : card.kind === 'safe'
-                ? wSafe
-                : wSpecial
-        return kindWeight * rarityWeight(card.rarity)
-    })
+    // 重み付きでランダムで1枚を選択する
+    const total = weightedPool.reduce((s, x) => s + x.weight, 0)
+    let r = Math.random() * total
 
-    const index = pickWeightedIndex(weights)
-    return CARDS[index].id    
+    // 重みを順に引き算していき、マイナスになったカードを選ぶ
+    for (const entry of weightedPool) {
+        if (r < entry.weight) {
+            return entry.card.id
+        }
+        r -= entry.weight
+    }
+    
+    // 万が一上記処理を抜けた場合は、最終カードを選択
+    return weightedPool[weightedPool.length - 1].card.id
+
 }
+
