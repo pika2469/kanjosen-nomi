@@ -32,6 +32,13 @@ export const CARDS: Card[] = [
         description: '全員が+1杯',
     },
     {
+        id: 'atk_shoubu_time',
+        kind: 'attack',
+        rarity: 'R',
+        name: '勝負タイム',
+        description: '簡易ミニゲームで負けた1名が+1杯',
+    },
+    {
         id: 'atk_shoot',
         kind: 'attack',
         rarity: 'R',

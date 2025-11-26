@@ -8,7 +8,42 @@ import { pickStationEvent } from '@/stationEvents'
 import { calcDrinkForPlayer } from '@/drinkLogic'
 import { applyXpAndLevelUp, calcTurnXpFromDrinks } from '@/xpLogic'
 import { drawRandomCardId, getCardById } from '@/cards'
-import { getPassiveId, canUnlockPassive } from '@/passives'
+import { getPassiveId, canUnlockPassive, hasAttackTease, hasAttackTrigger } from '@/passives'
+
+// カード処理に使うヘルパー群
+// 自分以外からランダムにcount人のプレイヤーIDを取得する関数
+function pickRandomOtherPlayerIds(
+    players: Player[],
+    selfId: string,
+    count: number,
+): string[] {
+    const others = players.filter((p) => p.id !== selfId)
+    if (others.length === 0) return []
+
+    // ランダム並び替え
+    const shuffled = [...others].sort(() => Math.random() - 0.5)
+    return shuffled.slice(0, Math.min(count, others.length)).map((p) => p.id)
+}
+
+// DrinkResult配列に対して、対象ID群に+amountする関数
+function plusToTargets(
+    drinks: DrinkResult[],
+    targetIds: string[],
+    amount: number,
+): DrinkResult[] {
+    if (amount === 0 || targetIds.length === 0) return drinks
+    
+    return drinks.map((d) => {
+        if (!targetIds.includes(d.playerId)) return d
+
+        // 上限はここではclampせず、最終的なバランス調整フェーズで検討
+        return {
+            ...d,
+            final: d.final + amount,
+        }
+    })
+}
+
 
 // Store型の定義
 type Store = {
@@ -526,7 +561,7 @@ export const useGameStore = create<Store>((set, get) => ({
                         return p
                     }
 
-                    const newCardId = drawRandomCardId()
+                    const newCardId = drawRandomCardId(p)
                     return {
                         ...p,
                         hand: [...p.hand, newCardId],
@@ -669,7 +704,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 if (p.hand.length >= p.handSizeMax) {
                     return p
                 }
-                const newCardId = drawRandomCardId()
+                const newCardId = drawRandomCardId(p)
                 return {
                     ...p,
                     hand: [...p.hand, newCardId],
@@ -705,27 +740,30 @@ export const useGameStore = create<Store>((set, get) => ({
         const player = stateBefore.players.find((p) => p.id === playerId)
         if (!player) return
 
-        // まず手札からカードを取り除く
-        // 次ターン用のフラグを更新
+        // １）手札からカードを取り除く & 次ターンのフラグ更新
         let updatedPlayers = stateBefore.players.map((p) => {
             if (p.id !== playerId) return p
 
             const newHand = [...p.hand]
             const idx = newHand.indexOf(cardId)
             if (idx >= 0) newHand.splice(idx, 1) // handのidx番目のカードを取り除く
-    
-            let nextTurnExtraDraw = p.nextTurnExtraDraw
-            let nextTurnPlusBias = p.nextTurnPlusBias
+            
+            // 次ターン用のフラグを設置
+            let nextTurnExtraDraw = p.nextTurnExtraDraw ?? 0
+            let nextTurnPlusBias = p.nextTurnPlusBias ?? false
 
             switch (card.id) {
                 case 'sp_draw_plus1':
                     // 次ターンのドロー+1
-                    nextTurnExtraDraw = (nextTurnExtraDraw ?? 0) + 1
+                    nextTurnExtraDraw += 1
                     break
                 
                 case 'safe_karume':
                     // 軽めにいくわ → 次ターンの+側バイアスを付与
                     nextTurnPlusBias = true
+                    break
+                
+                default:
                     break
             }
             
@@ -737,7 +775,7 @@ export const useGameStore = create<Store>((set, get) => ({
             }
         })
 
-        // currentDrinksをベースにカード効果を適用
+        // 2) 今ターンの杯数(currentDrinks)に効果を適用
         let updatedDrinks = [...stateBefore.game.currentDrinks]
 
         // 引数1: targetPlayerId...対象のプレイヤー
@@ -749,6 +787,7 @@ export const useGameStore = create<Store>((set, get) => ({
             const tPlayer = updatedPlayers.find((p) => p.id === targetPlayerId)
             if (!tPlayer) return
 
+            // 対象プレイヤーの杯数が抽選済か？
             const existing = updatedDrinks.find(
                 (d) => d.playerId === targetPlayerId,
             )
@@ -762,7 +801,20 @@ export const useGameStore = create<Store>((set, get) => ({
             )
         }
 
+        const plusTo = (targetIds: string[], amount: number) => {
+            updatedDrinks = plusToTargets(
+                updatedDrinks,
+                targetIds,
+                amount,
+            )
+        }
+
         // カードごとの効果分岐
+
+        // 攻撃パッシブ
+        const hasTease = hasAttackTease(player) // アタックツリー1段階：煽り上手
+        const hasTrigger = hasAttackTrigger(player) // アタックツリー3段階：攻撃トリガー
+
         switch (card.id) {
             case 'safe_non_alcohol': {
                 // ノンアル券：このターン杯数0固定
@@ -781,6 +833,19 @@ export const useGameStore = create<Store>((set, get) => ({
                     return {
                         ...d,
                         final: next < min ? min : next,
+                    }
+                })
+                break
+            }
+
+            case 'safe_karume': {
+                // 軽めにいくわ：このターン-2杯(下限Liまで)
+                applyToDrink(playerId, (d, p) => {
+                    const min = p.Li ?? 0
+                    const next = Math.max(min, d.final - 2)
+                    return {
+                        ...d,
+                        final: next,
                     }
                 })
                 break
@@ -829,21 +894,105 @@ export const useGameStore = create<Store>((set, get) => ({
                 break
             }
 
-            case 'safe_karume': {
-                // 軽めにいくわ：このターン-2杯(下限Liまで)
-                applyToDrink(playerId, (d, p) => {
-                    const min = p.Li ?? 0
-                    const next = Math.max(min, d.final - 2)
-                    return {
-                        ...d,
-                        final: next,
-                    }
-                })
+            case 'sp_draw_plus1': {
+                // ドロー+1：次のターンのドロー+1枚。今ターンの杯数には影響しないので何もしない
                 break
             }
 
-            case 'sp_draw_plus1': {
-                // ドロー+1：次のターンのドロー+1枚。今ターンの杯数には影響しないので何もしない
+            case 'atk_hitokuchi_plus': {
+                // ひとくちプラス: 自分以外ランダム1人に+1
+                const baseTargets = 1
+                const othersCount = updatedPlayers.length - 1
+                const targetCount = 
+                    othersCount <= 0 
+                    ? 0
+                    : Math.min(
+                        othersCount,
+                        hasTease ? baseTargets + 1 : baseTargets,
+                    )
+                    
+                    // 対象プレイヤーID決定
+                    const targets = pickRandomOtherPlayerIds(
+                        updatedPlayers,
+                        playerId,
+                        targetCount,
+                    )
+
+                    if (targets.length > 0) {
+                        plusTo(targets, 1)
+
+                        // 攻撃トリガー: 50%で同じ対象にさらに+1
+                        if (hasTrigger && Math.random() < 0.5) {
+                            plusTo(targets, 1)
+                        }
+                    }
+                    break 
+            }
+
+            case 'atk_michizure_plus': {
+                // 道連れプラス：
+                // ベース：自分+ランダム1人に+1
+                // 煽り上手：自分+ランダム2人に+1
+                const baseOthers = 1
+                const othersCount = updatedPlayers.length - 1
+                const targetOthers =
+                    othersCount <= 0
+                    ? 0
+                    : Math.min(
+                        othersCount,
+                        hasTease ? baseOthers + 1 : baseOthers,
+                    )
+                
+                const others = pickRandomOtherPlayerIds(
+                    updatedPlayers,
+                    playerId,
+                    targetOthers,
+                )
+
+                // 対象は自分(playerId)とランダム選出した他プレイヤー(others)
+                const targets = [playerId, ...others]
+
+                if (targets.length > 0) {
+                    plusTo(targets, 1)
+
+                    // 攻撃トリガー：50%で同じ対象にさらに+1
+                    if (hasTrigger && Math.random() < 0.5) {
+                        plusTo(targets, 1)
+                    }
+                }
+                break
+            }
+
+            case 'atk_minna_de_kanpai': {
+                // みんなで乾杯:全員+1
+                const targets = updatedPlayers.map((p) => p.id)
+
+                plusTo(targets, 1)
+
+                // 攻撃トリガー:全員にもう1回+1
+                if (hasTrigger && Math.random() < 0.5) {
+                    plusTo(targets, 1)
+                }
+
+                // フィールドシールドによる「全体+1無効」は、ここではまだ反映しない
+                break
+            }
+
+            case 'atk_shoubu_time': {
+                // 勝負タイム: 
+                // 自分を含む全プレイヤーの中からランダム1名を選び、そのプレイヤーに+1杯
+                // 将来的にはミニゲームを行い、負けたプレイヤー1名が+1杯になる仕様に変更
+                if (updatedPlayers.length === 0) {
+                    break
+                }
+
+                const shuffled = [...updatedPlayers].sort(() => Math.random() - 0.5)
+                const loser = shuffled[0]
+
+                if (loser) {
+                    plusTo([loser.id], 1)
+                }
+
                 break
             }
 

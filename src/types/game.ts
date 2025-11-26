@@ -34,6 +34,7 @@ export type CardId =
     | 'atk_hitokuchi_plus'
     | 'atk_michizure_plus'
     | 'atk_minna_de_kanpai'
+    | 'atk_shoubu_time'
     | 'atk_shoot'
     | 'atk_field_break'
     | 'safe_non_alcohol'
