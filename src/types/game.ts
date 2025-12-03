@@ -136,6 +136,7 @@ export interface Player {
     hand: CardId[]  // 手札
     nextTurnExtraDraw: number   // 次のターンのカードドロー枚数を+nするためのバッファ
     nextTurnPlusBias: boolean   // 次のターンの杯数ロールを「+側寄り」にする一時フラグ
+    nextTurnSlowBias: boolean   // 次のターンの杯数ロールを「-側寄り」にする一時フラグ
 }
 
 // IndexedDBに永続保存する対象データ。復元にも使用

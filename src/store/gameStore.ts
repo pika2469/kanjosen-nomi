@@ -44,6 +44,12 @@ function plusToTargets(
     })
 }
 
+// スルーガード用：今ターン中「他プレイヤーからの加算」を無効化するプレイヤーID一覧
+let slueGuardedThisTurn: string[] = []
+
+// フィールドブレイク用：今ターン中、セーフガード効果を無効化するフラグ
+let fieldBreakActiveThisTurn = false
+
 
 // Store型の定義
 type Store = {
@@ -190,6 +196,7 @@ export const useGameStore = create<Store>((set, get) => ({
             hand: [],
             nextTurnExtraDraw: 0,
             nextTurnPlusBias: false,
+            nextTurnSlowBias: false,
         }
         set((state) => ({
             players: [...state.players, p],
@@ -234,6 +241,12 @@ export const useGameStore = create<Store>((set, get) => ({
             },
         })
 
+        // スルーガードもクリア
+        slueGuardedThisTurn = []
+
+        // フィールドブレイクもクリア
+        fieldBreakActiveThisTurn = false
+
         // 3) bootstrap (設定読込など)
         await bootstrap()   
     },
@@ -276,6 +289,12 @@ export const useGameStore = create<Store>((set, get) => ({
                 cardUsageBlockedForPlayerId: null,
             },
         })
+
+        // スルーガード状態はターン終了時にリセット
+        slueGuardedThisTurn = []
+
+        // フィールドブレイク状態もターン終了時にリセット
+        fieldBreakActiveThisTurn = false
     },
 
     // フェーズ管理（フェーズステートマシン）
@@ -740,6 +759,12 @@ export const useGameStore = create<Store>((set, get) => ({
         const player = stateBefore.players.find((p) => p.id === playerId)
         if (!player) return
 
+        // 今ターンのスルーガード状態をSetで扱う
+        const guardedIds = new Set(slueGuardedThisTurn)
+
+        // 今ターンのフィールドブレイク状態をローカルに保存
+        const isFieldBreakActive = fieldBreakActiveThisTurn
+
         // １）手札からカードを取り除く & 次ターンのフラグ更新
         let updatedPlayers = stateBefore.players.map((p) => {
             if (p.id !== playerId) return p
@@ -761,6 +786,12 @@ export const useGameStore = create<Store>((set, get) => ({
                 case 'safe_karume':
                     // 軽めにいくわ → 次ターンの+側バイアスを付与
                     nextTurnPlusBias = true
+
+                    // フィールドブレイクが有効な場合は、次ターンバイアスも無効（未実装）
+                    // if (!isFieldBreakActive) {
+                    //     nextTurnPlusBias = true
+                    // }
+
                     break
                 
                 default:
@@ -801,7 +832,16 @@ export const useGameStore = create<Store>((set, get) => ({
             )
         }
 
-        const plusTo = (targetIds: string[], amount: number) => {
+        const plusTo = (targetIds: string[], amount: number, sourcePlayerId: string) => {
+            const effectiveTargets = targetIds.filter((tid) => {
+                // ガードされていない → そのまま
+                if (!guardedIds.has(tid)) return true
+
+                return tid === sourcePlayerId
+            })
+
+            if (amount === 0 || effectiveTargets.length === 0) return            
+            
             updatedDrinks = plusToTargets(
                 updatedDrinks,
                 targetIds,
@@ -818,6 +858,10 @@ export const useGameStore = create<Store>((set, get) => ({
         switch (card.id) {
             case 'safe_non_alcohol': {
                 // ノンアル券：このターン杯数0固定
+                if (isFieldBreakActive) {
+                    // フィールドブレイク中は効果無効（カードだけ消費）
+                    break
+                }
                 applyToDrink(playerId, (d) => ({
                     ...d,
                     final: 0,
@@ -827,6 +871,9 @@ export const useGameStore = create<Store>((set, get) => ({
 
             case 'safe_hitoyasumi': {
                 // ひとやすみ：自分-1杯(下限Liまで)
+                if (isFieldBreakActive) {
+                    break
+                }
                 applyToDrink(playerId, (d, p) => {
                     const next = d.final - 1
                     const min = p.Li ?? 0
@@ -840,6 +887,9 @@ export const useGameStore = create<Store>((set, get) => ({
 
             case 'safe_karume': {
                 // 軽めにいくわ：このターン-2杯(下限Liまで)
+                if (isFieldBreakActive) {
+                    break
+                }
                 applyToDrink(playerId, (d, p) => {
                     const min = p.Li ?? 0
                     const next = Math.max(min, d.final - 2)
@@ -899,6 +949,76 @@ export const useGameStore = create<Store>((set, get) => ({
                 break
             }
 
+            case 'sp_random_change': {
+                // ランダムチェンジ
+                // 今ターン杯数が確定しているプレイヤーの中からランダム2名を選び、その2名のfinalを入れ替える
+
+                if (updatedDrinks.length < 2) {
+                    // 対象が1人以下なら何もしない
+                    break
+                }
+
+                // ランダムに2つの異なるインデックスを選ぶ
+                const len = updatedDrinks.length
+                const i = Math.floor(Math.random() * len)
+                let j = Math.floor(Math.random() * (len -1))
+                if (j >= i) j += 1 // j != iとなるように補正
+
+                const newDrinks = [...updatedDrinks]
+
+                // finalだけをスワップ
+                const tempFinal = newDrinks[i].final
+                newDrinks[i] = {
+                    ...newDrinks[i],
+                    final: newDrinks[j].final,
+                }
+                newDrinks[j] = {
+                    ...newDrinks[j],
+                    final: tempFinal,
+                }
+
+                updatedDrinks = newDrinks
+                break
+            }
+
+            case 'safe_yukkuri_mode': {
+                // ゆっくりモード
+                // 次ターンの杯数抽選時に下限寄りに抽選
+
+                if (isFieldBreakActive) {
+                    break
+                }
+
+                if (!player) break;
+
+                // 次ターン用のフラグを立てる
+                set((state) => {
+                    const updatedPlayers = state.players.map((p) => {
+                        if (p.id === playerId) {
+                            return {...p, nextTurnSlowBias: true};
+                        }
+                        return p;
+                    });
+                    return {...state, players: updatedPlayers};
+                });
+
+                break;
+            }
+
+            case 'safe_slue_guard': {
+                // スルーカード
+                // 今ターン中、他プレイヤーからの「+杯」効果を自分だけ無効化
+                
+                if (isFieldBreakActive) {
+                    break
+                }
+
+                if (!player) break;
+
+                guardedIds.add(playerId)
+                break
+            }
+
             case 'atk_hitokuchi_plus': {
                 // ひとくちプラス: 自分以外ランダム1人に+1
                 const baseTargets = 1
@@ -919,11 +1039,11 @@ export const useGameStore = create<Store>((set, get) => ({
                     )
 
                     if (targets.length > 0) {
-                        plusTo(targets, 1)
+                        plusTo(targets, 1, playerId)
 
                         // 攻撃トリガー: 50%で同じ対象にさらに+1
                         if (hasTrigger && Math.random() < 0.5) {
-                            plusTo(targets, 1)
+                            plusTo(targets, 1, playerId)
                         }
                     }
                     break 
@@ -953,11 +1073,11 @@ export const useGameStore = create<Store>((set, get) => ({
                 const targets = [playerId, ...others]
 
                 if (targets.length > 0) {
-                    plusTo(targets, 1)
+                    plusTo(targets, 1, playerId)
 
                     // 攻撃トリガー：50%で同じ対象にさらに+1
                     if (hasTrigger && Math.random() < 0.5) {
-                        plusTo(targets, 1)
+                        plusTo(targets, 1, playerId)
                     }
                 }
                 break
@@ -967,11 +1087,11 @@ export const useGameStore = create<Store>((set, get) => ({
                 // みんなで乾杯:全員+1
                 const targets = updatedPlayers.map((p) => p.id)
 
-                plusTo(targets, 1)
+                plusTo(targets, 1, playerId)
 
                 // 攻撃トリガー:全員にもう1回+1
                 if (hasTrigger && Math.random() < 0.5) {
-                    plusTo(targets, 1)
+                    plusTo(targets, 1, playerId)
                 }
 
                 // フィールドシールドによる「全体+1無効」は、ここではまだ反映しない
@@ -990,7 +1110,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 const loser = shuffled[0]
 
                 if (loser) {
-                    plusTo([loser.id], 1)
+                    plusTo([loser.id], 1, playerId)
                 }
 
                 break
@@ -1070,6 +1190,13 @@ export const useGameStore = create<Store>((set, get) => ({
                 break
             }
 
+            case 'atk_field_break': {
+                // フィールドブレイク
+                // このターン中、全員のセーフガード効果を無効化する
+                fieldBreakActiveThisTurn = true
+                break
+            }
+
             default:
                 // それ以外のカードは今のところ「効果なし」で消費だけ行う
                 break
@@ -1085,6 +1212,9 @@ export const useGameStore = create<Store>((set, get) => ({
                 usedAtTurn: stateBefore.game.turn,
             },
         }
+
+        // 今ターンのスルーガード状態を保存
+        slueGuardedThisTurn = Array.from(guardedIds)
 
         set({
             ...stateBefore,

@@ -28,6 +28,7 @@ export function rollBaseWithPassives(player: Player): number {
     const hasSafe = hasSafeLighten(player)
     const dual = hasTrickDualRoll(player)
     const plusBias = player.nextTurnPlusBias ?? false
+    const slowBias = player.nextTurnSlowBias ?? false
 
     // 基本分布: 0~3の中で1~2が出やすい
     let weights: number[] = [1, 4, 4, 1]
@@ -46,6 +47,12 @@ export function rollBaseWithPassives(player: Player): number {
             weights[2] * 1.2,
             weights[3] * 1.4,
         ]
+    }
+
+    // ---- ゆっくりモード：下限よりバイアス ----
+    if (slowBias) {
+        // 下限寄りに重みを変更
+        weights = [3, 5, 2, 0]
     }
 
     // ---- 特殊ツリー3段階：デュアルロール ----
