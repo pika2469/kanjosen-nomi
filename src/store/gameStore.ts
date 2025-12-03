@@ -673,10 +673,10 @@ export const useGameStore = create<Store>((set, get) => ({
                 (r) => r.playerId !== result.playerId,
             )
 
-            // nextTurnPlusBias一時フラグを初期化
+            // nextTurnPlusBiasとnextTurnSlowBias一時フラグを初期化
             const newPlayers = state.players.map((p, idx) =>
                 idx === playerIndex
-                ? { ...p, nextTurnPlusBias: false }
+                ? { ...p, nextTurnPlusBias: false, nextTurnSlowBias: false }
                 : p,
             )
 
@@ -785,12 +785,11 @@ export const useGameStore = create<Store>((set, get) => ({
                 
                 case 'safe_karume':
                     // 軽めにいくわ → 次ターンの+側バイアスを付与
-                    nextTurnPlusBias = true
 
-                    // フィールドブレイクが有効な場合は、次ターンバイアスも無効（未実装）
-                    // if (!isFieldBreakActive) {
-                    //     nextTurnPlusBias = true
-                    // }
+                    // フィールドブレイクが有効な場合は、次ターンバイアスも無効
+                    if (!isFieldBreakActive) {
+                        nextTurnPlusBias = true
+                    }
 
                     break
                 
@@ -844,7 +843,7 @@ export const useGameStore = create<Store>((set, get) => ({
             
             updatedDrinks = plusToTargets(
                 updatedDrinks,
-                targetIds,
+                effectiveTargets,
                 amount,
             )
         }
