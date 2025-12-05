@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store/gameStore'
-import type { CardId } from '@/types/game'
+import type { CardId, Direction } from '@/types/game'
 
 // React関数コンポーネント
 export const TurnPage = () => {
@@ -17,6 +17,7 @@ export const TurnPage = () => {
         drawToAll,
         setPage,
         useCard,
+        moveStation,
     } = useGameStore()
 
     // 代表プレイヤー(activePlayer)と今処理中のプレイヤー(phasePlayer)
@@ -63,6 +64,11 @@ export const TurnPage = () => {
     const handleUseCard = (cardId: CardId) => {
         if (!phasePlayer) return
         useCard(phasePlayer.id, cardId)
+    }
+
+    // 駅移動デバッグ用
+    const handleDebugMoveStation = (direction: Direction, steps: number) => {
+        moveStation(steps, direction)
     }
 
     // ホームへ戻る
@@ -240,6 +246,48 @@ export const TurnPage = () => {
                     >
                         全員が1枚ずつドロー
                     </button>
+                </div>
+
+                {/* 駅移動(デバッグ) */}
+                <div className="mt-4 border-t pt-3">
+                    <h3 className="mb-1 text-xs font-semibold text-gray-700">駅移動(デバッグ)</h3>
+                    <p className="mb-2 text-[11px] text-gray-500">駅の移動のみ実行。駅イベントは発生させない</p>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {/* 時計回り */}
+                        <div>
+                            <p className="mb-1 text-xs font-semibold text-gray-600">時計回り</p>
+                            <div className='flex flex-wrap gap-1 justify-center'>
+                                {[1, 2, 3, 4, 5, 6].map((steps) => (
+                                    <button
+                                        key={`cw-${steps}`}
+                                        type="button"
+                                        className="rounded bg-sky-100 px-2 py-1 text-xs hover:bg-sky-200"
+                                        onClick={() => handleDebugMoveStation('cw' as Direction, steps)}
+                                    >
+                                        +{steps}駅
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 反時計回り */}
+                        <div>
+                            <p className="mb-1 text-xs font-semibold text-gray-600">反時計回り</p>
+                            <div className='flex flex-wrap gap-1 justify-center'>
+                                {[1, 2, 3, 4, 5, 6].map((steps) => (
+                                    <button
+                                        key={`ccw-${steps}`}
+                                        type="button"
+                                        className="rounded bg-sky-100 px-2 py-1 text-xs hover:bg-sky-200"
+                                        onClick={() => handleDebugMoveStation('ccw' as Direction, steps)}
+                                    >
+                                        -{steps}駅
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
