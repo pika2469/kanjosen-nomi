@@ -6,6 +6,7 @@ import "./App.css"                                // 既存CSSも読み込み（
 
 import { HomePage } from '@/pages/HomePage' 
 import { MainLayout } from '@/components/layout/MainLayout'
+import { TurnPage_debug } from '@/pages/TurnPage_debug'
 import { TurnPage } from '@/pages/TurnPage'
 import { RoulettePage } from '@/pages/RoulettePage'
 import { CardHandPage } from '@/pages/CardHandPage'
@@ -27,6 +28,9 @@ export default function App() {
   switch (ui.currentPage) {
     case 'home':
       content = <HomePage />
+      break
+    case 'turn_debug':
+      content = <TurnPage_debug />
       break
     case 'turn':
       content = <TurnPage />

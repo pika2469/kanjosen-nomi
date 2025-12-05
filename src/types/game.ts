@@ -149,6 +149,7 @@ export interface PersistedData {
 export type Page =
     | 'home'
     | 'turn'
+    | 'turn_debug'
     | 'roulette'
     | 'cardHand'
     | 'result'
