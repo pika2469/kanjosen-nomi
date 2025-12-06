@@ -75,7 +75,7 @@ export function ResultPage() {
                                         {r.passiveMod}
                                     </span>
                                 </div>
-                                <div className="text-lg font-semibold">{r.total}杯</div>
+                                <div className="text-lg font-semibold">{r.final}杯</div>
                             </li>
                         ))}
                     </ul>
