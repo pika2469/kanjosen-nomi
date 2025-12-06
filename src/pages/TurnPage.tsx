@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
-import type { CardId, Direction } from '@/types/game'
+import type { CardId, Direction, PassiveId } from '@/types/game'
+import { PASSIVES } from '@/passives'
 
 // React関数コンポーネント
 export const TurnPage = () => {
@@ -18,11 +20,18 @@ export const TurnPage = () => {
         setPage,
         useCard,
         moveStation,
+        runProgressPhase,
+        runStationPhase,
+        unlockPassive,
     } = useGameStore()
 
     // 代表プレイヤー(activePlayer)と今処理中のプレイヤー(phasePlayer)
     const activePlayer = players[game.activePlayerIndex] ?? null
     const phasePlayer = game.phasePlayerIndex != null ? players[game.phasePlayerIndex] ?? null : null
+
+    // パッシブ付与用デバッグ状態
+    const [debugPassiveId, setDebugPassiveId] = useState('')
+    const [debugPassiveTargetId, setDebugPassiveTargetId] = useState('')
 
     // デバッグ用：フェーズの日本語ラベル
     const phaseLabelMap: Record<string, string> = {
@@ -71,6 +80,25 @@ export const TurnPage = () => {
         moveStation(steps, direction)
     }
 
+    // 駅イベント適用(デバッグ用)
+    const handleDebugRunStationPhase = (direction: Direction, steps: number) => {
+        runStationPhase(steps, direction)
+    }
+
+    // パッシブ解放(デバッグ用)
+    const handleDebugUnlockPassive = () => {
+        const targetId = debugPassiveTargetId || activePlayer?.id
+        if (!targetId) return
+        if (!debugPassiveId) return
+        unlockPassive(targetId, debugPassiveId as PassiveId)
+
+    }
+
+    // 現在の杯数をXPへ反映(デバッグ用)
+    const handleDebugApplyXp = () => {
+        runProgressPhase()
+    }
+
     // ホームへ戻る
     const handleGoHome = () => {
         setPage('home')
@@ -94,13 +122,13 @@ export const TurnPage = () => {
                         <span className="font-semibold">
                             {activePlayer ? activePlayer.name : '未選択'}
                         </span>
-                        {phasePlayer && (
-                            <>
-                                {' '}
-                                / 処理中プレイヤー:{' '}
-                                <span className="font-semibold">{phasePlayer.name}</span>
-                            </>
-                        )}
+                    </p>
+
+                    <p className="text-sm text-gray-600">
+                        操作中プレイヤー:{' '}
+                        <span className="font-semibold">
+                            {phasePlayer ? phasePlayer.name : '未選択'}
+                        </span> 
                     </p>
                     <p className="text-sm text-gray-600">
                         ムード:{' '}
@@ -246,6 +274,13 @@ export const TurnPage = () => {
                     >
                         全員が1枚ずつドロー
                     </button>
+                    <button
+                        type="button"
+                        className="rounded bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
+                        onClick={handleDebugApplyXp}
+                    >
+                        現在の杯数をXPに反映
+                    </button>
                 </div>
 
                 {/* 駅移動(デバッグ) */}
@@ -287,6 +322,79 @@ export const TurnPage = () => {
                                 ))}
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {/* 駅移動 */}
+                <div className="mt-4 border-t pt-3">
+                    <h3 className="mb-1 text-xs font-semibold text-gray-700">駅移動(デバッグ)</h3>
+                    <p className="mb-2 text-[11px] text-gray-500">
+                        駅移動+駅イベント決定
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                            type="button"
+                            className="rounded bg-teal-600 px-3 py-1 text-xs text-white hover:bg-teal-700"
+                            onClick={() => handleDebugRunStationPhase('cw' as Direction, 1)}
+                        >
+                            時計回りに1駅+イベント
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded bg-teal-100 px-3 py-1 text-xs hover:bg-teal-200"
+                            onClick={() => handleDebugRunStationPhase('ccw' as Direction, 1)}
+                        >
+                            反時計回りに1駅+イベント
+                        </button>
+                    </div>
+                </div>
+
+                {/* パッシブ習得 */}
+                <div className="mt-4 border-t pt-3">
+                    <h3 className="mb-1 text-xs font-semibold text-gray-700">パッシブ習得</h3>
+                    <p className="mb-2 text-[11px] text-gray-500">任意のプレイヤーに任意のパッシブを与える</p>
+
+                    <div className="flex flex-col gap-2 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+                        <div className="flex items-center gap-1">
+                            <span className="whitespace-nowrap">対象プレイヤー</span>
+                            <select
+                                className="rounded border px-2 py-1 text-xs"
+                                value={debugPassiveTargetId}
+                                onChange={(e) => setDebugPassiveTargetId(e.target.value)}
+                            >
+                                <option value="">代表プレイヤー(default)</option>
+                                {players.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                            <span className="whitespace-nowrap">PassiveId:</span>
+                            <select 
+                                className="rounded border px-2 py-1 text-xs"
+                                value={debugPassiveId}
+                                onChange={(e) => setDebugPassiveId(e.target.value)}
+                            >
+                                <option value="">---選択してください---</option>
+
+                                {PASSIVES.map((node) => (
+                                    <option key={node.id} value={node.id}>
+                                        {node.id} : {node.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="rounded bg-violet-600 px-3 py-1 text-xs text-white hover:bg-violet-700"
+                            onClick={handleDebugUnlockPassive}
+                        >
+                            パッシブ付与
+                        </button>
                     </div>
                 </div>
             </section>
