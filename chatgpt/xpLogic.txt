@@ -13,6 +13,13 @@ const LEVEL_XP_THRESHOLDS: number[] = [
 // レベル上限
 const MAX_LEVEL = 5
 
+// レベルから手札上限を決める関数
+function calcHandSizeMaxByLevel(level: number): number {
+    if (level <= 2) return 2
+    if (level <= 4) return 3
+    return 4
+}
+
 // プレイヤーごとにgainedXpを加算
 // 必要に応じてLvを上げ、LvアップごとにSPを+1する
 // 戻り値: 更新済 Player
@@ -38,11 +45,15 @@ export function applyXpAndLevelUp(player: Player, gainedXp: number): Player {
         }
     }
 
+    // 手札上限枚数を決定
+    const nextHandSizeMax = calcHandSizeMaxByLevel(level)
+
     return {
         ...player,
-        xp,
-        level,
-        sp,
+        xp: xp,
+        level: level,
+        sp: sp,
+        handSizeMax: nextHandSizeMax,
     }
 }
 

@@ -1,4 +1,4 @@
-import type { Card, CardId, Player } from '@/types/game'
+import type { Card, CardId, Player, Mood } from '@/types/game'
 import {
     hasAttackRateUp,
     hasSafeRateUp,
@@ -166,22 +166,35 @@ function getRarityWeights(player: Player) {
     }
 }
 
+type DrawContext = {
+    mood?: Mood | null
+    forceRareOnly?: boolean // balance用：「このドローは必ずR/SRのフラグ」
+}
 
-// カードをランダムに1枚ドローする関数（IDだけ返す）
-// export function drawRandomCardId(): CardId {
-//     const idx = Math.floor(Math.random() * CARDS.length)
-//     return CARDS[idx].id
-// }
+// カードをランダムに1枚ドローする関数
+// パッシブやスキル重みを考慮してドローする
+export function drawRandomCardId(
+    player: Player,
+    context?: DrawContext,
+): CardId {
+    const kindW = getKindWeights(player) // パッシブ由来の種別(attack/safe/special)
+    const rarityW = getRarityWeights(player) // パッシブ由来のレアリティ重み
 
-export function drawRandomCardId(player: Player): CardId {
-    const kindW = getKindWeights(player) // スキル重み
-    const rarityW = getRarityWeights(player) // パッシブ重み
+    // balance用：R/SR限定ドローを行うかどうか
+    const basePool =
+        context?.forceRareOnly
+            ? CARDS.filter((c) => c.rarity ==='R' || c.rarity === 'SR')
+            : CARDS
+
+    // 万一 R/SR が0枚になった場合のフォールバック
+    const pool = basePool.length > 0 ? basePool : CARDS
 
     // kind x rarityの総合重みを計算
     // weightedPoolは空の配列：カード1枚と、その重みを入れる箱
     const weightedPool: { card: Card; weight: number }[] = []
 
-    for (const c of CARDS) {
+    for (const c of pool) {
+        // 種別の重み
         const kw =
             c.kind === 'attack' 
             ? kindW.attack
@@ -189,9 +202,27 @@ export function drawRandomCardId(player: Player): CardId {
             ? kindW.safe
             : kindW.special
         
+        // レアリティごとの重み
         const rw = rarityW[c.rarity]
 
-        const weight = kw * rw
+        // ムードによる追加補正
+        let moodW = 1
+        const mood = context?.mood ?? null
+
+        if (mood === 'aggressive' && c.kind === 'attack') {
+            // アタックモード：アタックカード+15%
+            moodW *= 1.15
+        } else if (mood === 'defensive' && c.kind === 'safe') {
+            // セーフモード：セーフカード+15%
+            moodW *= 1.15
+        } else if (mood === 'lucky' && (c.rarity === 'R' || c.rarity === 'SR')) {
+            // ハッピードロー：R/SR+15%
+            moodW *= 1.15
+        }
+
+        // balance(ブーストタイム)は、gameStoreでforceRareOnlyを立てることで反映
+        
+        const weight = kw * rw * moodW
 
         weightedPool.push({ card: c, weight })
     }

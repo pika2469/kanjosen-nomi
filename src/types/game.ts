@@ -69,6 +69,7 @@ export interface Settings {
     allowDuplicateStations: boolean // 駅重複のON/OFF
     sound: boolean     // 効果音ON/OFF
     safety: boolean    // 安全モードON/OFF、ONなら飲みすぎ抑制
+    startStationId: StationId   // 開始駅
 }
 
 // 駅ID（19駅)
@@ -137,6 +138,7 @@ export interface Player {
     nextTurnExtraDraw: number   // 次のターンのカードドロー枚数を+nするためのバッファ
     nextTurnPlusBias: boolean   // 次のターンの杯数ロールを「+側寄り」にする一時フラグ
     nextTurnSlowBias: boolean   // 次のターンの杯数ロールを「-側寄り」にする一時フラグ
+    maxDrink: number    // 上限杯数、デフォルトは5杯
 }
 
 // IndexedDBに永続保存する対象データ。復元にも使用
@@ -198,6 +200,9 @@ export interface GameStateSlice {
 
     // このターンにカード使用が禁止されているプレイヤーID（なければnull）
     cardUsageBlockedForPlayerId: string | null
+
+    // balanceブースト(R/SRのみ出現)の今ターン使用有無
+    boostRareUsedForTurn: boolean
 }
 
 // パッシブ関連 -----------------------------------------------------

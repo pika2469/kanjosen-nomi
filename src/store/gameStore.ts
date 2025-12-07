@@ -5,7 +5,7 @@ import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, re
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
 import { pickStationEvent } from '@/stationEvents'
-import { calcDrinkForPlayer } from '@/drinkLogic'
+import { calcDrinkForPlayer, clampFinalWithAllCaps } from '@/drinkLogic'
 import { applyXpAndLevelUp, calcTurnXpFromDrinks } from '@/xpLogic'
 import { drawRandomCardId, getCardById } from '@/cards'
 import { getPassiveId, canUnlockPassive, hasAttackTease, hasAttackTrigger } from '@/passives'
@@ -83,6 +83,7 @@ type Store = {
     addPlayer: (name: string, style: Player['style']) => Promise<void>
     deletePlayer: (id: string) => Promise<void>
     setPlayerLi : (id: string, Li: number) => Promise<void>
+    setPlayerMaxDrink: (id: string, maxDrink: number) => Promise<void>
 
     // 進行
     setMood: (mood: Mood | null) => void
@@ -136,6 +137,7 @@ export const useGameStore = create<Store>((set, get) => ({
         allowDuplicateStations: true,
         sound: true,
         safety: true,
+        startStationId: 'osaka',
     },
 
     game: {
@@ -150,6 +152,7 @@ export const useGameStore = create<Store>((set, get) => ({
         currentDrinks: [],
         lastUsedCard: null,
         cardUsageBlockedForPlayerId: null,
+        boostRareUsedForTurn: false,
     },
 
     ui: {
@@ -172,16 +175,51 @@ export const useGameStore = create<Store>((set, get) => ({
     // 起動時の復元処理
     bootstrap: async () => {
         const [s, ps] = await Promise.all([loadSettings(), loadPlayers()])
+
+        const defaultStartStationId = 'osaka'
+
         set({
-            settings: { allowDuplicateStations: s.allowDuplicateStations, sound: s.sound, safety: s.safety },
+            settings: { 
+                allowDuplicateStations: s.allowDuplicateStations, 
+                sound: s.sound, 
+                safety: s.safety,
+                startStationId: s.startStationId ?? defaultStartStationId,
+             },
             players: ps,
         })
     },
 
     // 設定を部分的に更新
     setSettings: async (patch) => {
-        const next = { ...get().settings, ...patch }
-        set({ settings: next })
+        const prevSettings = get().settings
+        const next = { ...prevSettings, ...patch }
+
+        set((state) => {
+            let game = state.game
+
+            // 開始駅が変更され、かつゲームが初期状態の場合
+            if ('startStationId' in patch && patch.startStationId) {
+                const isInitialGameState =
+                    game.turn === 1 &&
+                    game.phase === 'mood' &&
+                    game.currentStation === null &&
+                    game.visitedStations.length === 0
+                
+                if (isInitialGameState) {
+                    game = {
+                        ...game,
+                        currentStation: patch.startStationId,
+                    }
+                }
+            }
+
+            return {
+                ...state,
+                settings: next,
+                game,
+            }
+        })
+
         await saveSettings(next)
     },
 
@@ -200,6 +238,7 @@ export const useGameStore = create<Store>((set, get) => ({
             nextTurnExtraDraw: 0,
             nextTurnPlusBias: false,
             nextTurnSlowBias: false,
+            maxDrink: 5,
         }
         set((state) => ({
             players: [...state.players, p],
@@ -215,6 +254,15 @@ export const useGameStore = create<Store>((set, get) => ({
     // プレイヤーの下限杯数変更 + 永続化
     setPlayerLi: async (id, Li) => {
         const next = get().players.map(p => p.id === id ? { ...p, Li } : p)
+        set({ players: next })
+        await replacePlayers(next)
+    },
+
+    // 各プレイヤーの最大杯数
+    setPlayerMaxDrink: async (id, maxDrink) => {
+        const next = get().players.map((p) =>
+            p.id === id ? { ...p, maxDrink } : p,
+        )
         set({ players: next })
         await replacePlayers(next)
     },
@@ -241,6 +289,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 currentDrinks: [],
                 lastUsedCard: null,
                 cardUsageBlockedForPlayerId: null,
+                boostRareUsedForTurn: false,
             },
         })
 
@@ -290,6 +339,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 currentEvent: null,
                 lastUsedCard: null,
                 cardUsageBlockedForPlayerId: null,
+                boostRareUsedForTurn: false,
             },
         })
 
@@ -323,8 +373,18 @@ export const useGameStore = create<Store>((set, get) => ({
             return
         }
 
-        // フェーズ2(駅決定): この関数では処理しない。フェーズ3へ進む
+        // フェーズ2(駅決定): ランダムに「何駅進むか」「方向」を決定して、駅+駅イベントを確定
         if (currentPhase === 'station') {
+            // 1~6駅のいずれをランダムに選ぶ
+            const steps = Math.floor(Math.random() * 6) + 1
+
+            // 時計周り / 反時計回り を50%でランダム決定
+            const direction: Direction = Math.random() < 0.5 ? 'cw' : 'ccw'
+
+            // 駅移動 + 駅イベント決定
+            get().runStationPhase(steps, direction)
+
+            // フェーズ3(stationEvent)へ進める
             set((state) => ({
                 game: {
                     ...state.game,
@@ -523,8 +583,10 @@ export const useGameStore = create<Store>((set, get) => ({
     // 駅を移動
     moveStation: (steps, direction) => {
         const { game, settings } = get()
+        const baseStationId = game.currentStation ?? settings.startStationId
+
         const nextId = getNextStationId(
-            game.currentStation,
+            baseStationId,
             steps,
             direction,
             settings.allowDuplicateStations,
@@ -547,8 +609,10 @@ export const useGameStore = create<Store>((set, get) => ({
         const { game, settings } = get()
 
         // 1: 次の駅を決める
+        const baseStationId = game.currentStation ?? settings.startStationId
+
         const nextId = getNextStationId(
-            game.currentStation,
+            baseStationId,
             steps,
             direction,
             settings.allowDuplicateStations,
@@ -575,7 +639,10 @@ export const useGameStore = create<Store>((set, get) => ({
 
             // 乗換イベントA: 代表カードドロー+1枚
             if (event && event.cardEffect === 'rep_draw_plus1' && activePlayer) {
-                updatedPlayers = state.players.map((p) => {
+                const isBalance = state.game.mood === 'balance'
+                let boostUsed = state.game.boostRareUsedForTurn ?? false
+                
+                updatedPlayers = state.players.map((p, idx) => {
                     if (p.id !== activePlayer.id) return p
 
                     // 手札が上限ならドローしない
@@ -583,12 +650,34 @@ export const useGameStore = create<Store>((set, get) => ({
                         return p
                     }
 
-                    const newCardId = drawRandomCardId(p)
+                    const isRep = idx === state.game.activePlayerIndex
+                    const forceRareOnly = isBalance && isRep && !boostUsed
+
+                    const newCardId = drawRandomCardId(p, {
+                        mood: state.game.mood,
+                        forceRareOnly,
+                    })
+
+                    if (forceRareOnly) {
+                        boostUsed = true
+                    }
+
                     return {
                         ...p,
                         hand: [...p.hand, newCardId],
                     }
                 })
+
+                // balanceブーストを使った場合はゲームステートに反映
+                if (isBalance && !state.game.boostRareUsedForTurn && boostUsed) {
+                    state = {
+                        ...state,
+                        game: {
+                            ...state.game,
+                            boostRareUsedForTurn: true,
+                        },
+                    }
+                }
             }
 
             // 乗換イベントB: 代表はこのターンカード使用不可
@@ -699,7 +788,10 @@ export const useGameStore = create<Store>((set, get) => ({
     // -------------------------------------------------------
     drawCard: (playerId) => {
         set((state) => {
-            const players = state.players.map((p) => {
+            const isBalance = state.game.mood === 'balance'
+            let boostUsed = state.game.boostRareUsedForTurn ?? false
+
+            const players = state.players.map((p, idx) => {
                 if (p.id !== playerId) return p
 
                 // 処理対象のプレイヤーの場合
@@ -708,32 +800,75 @@ export const useGameStore = create<Store>((set, get) => ({
                     return p
                 }
 
+                // 代表プレイヤーかどうか
+                const isRep = idx === state.game.activePlayerIndex
+
+                // レア(R/SR)出現フラグ
+                const forceRareOnly = isBalance && isRep && !boostUsed
+
                 // カードを引く処理
-                const newCardId = drawRandomCardId(p)
+                const newCardId = drawRandomCardId(p, {
+                    mood: state.game.mood,
+                    forceRareOnly,
+                })
+
+                if (forceRareOnly) {
+                    boostUsed = true
+                }
+
                 return {
                     ...p,
                     hand: [...p.hand, newCardId],
                 }
             })
 
-            return { ...state, players }
+            return { 
+                ...state, 
+                players,
+                game: {
+                    ...state.game,
+                    boostRareUsedForTurn: boostUsed,
+                },
+            }
         })
     },
 
     drawToAll: () => {
         set((state) => {
-            const players = state.players.map((p) => {
+            const isBalance = state.game.mood === 'balance'
+            let boostUsed = state.game.boostRareUsedForTurn ?? false
+
+            const players = state.players.map((p, idx) => {
                 if (p.hand.length >= p.handSizeMax) {
                     return p
                 }
-                const newCardId = drawRandomCardId(p)
+
+                const isRep = idx === state.game.activePlayerIndex
+                const forceRareOnly = isBalance && isRep && !boostUsed
+
+                const newCardId = drawRandomCardId(p, {
+                    mood: state.game.mood,
+                    forceRareOnly,
+                })
+
+                if (forceRareOnly) {
+                    boostUsed = true
+                }
+
                 return {
                     ...p,
                     hand: [...p.hand, newCardId],
                 }
             })
 
-            return { ...state, players }
+            return { 
+                ...state, 
+                players,
+                game: {
+                    ...state.game,
+                    boostRareUsedForTurn: boostUsed,
+                },
+            }
         })
     },
 
@@ -1204,10 +1339,23 @@ export const useGameStore = create<Store>((set, get) => ({
                 break
         }
 
+        // セーフティ設定を取得
+        const safety = stateBefore.settings.safety
+
+        // 最終杯数をプレイヤーごとの最大杯数+セーフティでクランプ
+        const clampedDrinks = updatedDrinks.map((d) => {
+            const p = updatedPlayers.find((player) => player.id === d.playerId)
+            if (!p) return d
+            return {
+                ...d,
+                final: clampFinalWithAllCaps(d.final, p, safety),
+            }
+        })
+
         // lastUseCardの更新
         const updatedGame = {
             ...stateBefore.game,
-            currentDrinks: updatedDrinks,
+            currentDrinks: clampedDrinks,
             lastUsedCard: {
                 playerId,
                 cardId,

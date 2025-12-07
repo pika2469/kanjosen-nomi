@@ -4,11 +4,32 @@ import {
 } from '@/passives'
 
 
-// ベースロールの上限（暫定で0~5杯想定)
+// ベースロールの上限（デフォルト値）
 const MAX_DRINK_BASE = 5
 
 // 安全側の上限（セーフティON時に使う）
 const MAX_DRINK_SAFETY = 2
+
+// プレイヤーとセーフティ設定から今ターンの最終上限を決める関数
+function getMaxCapForPlayer(player: Player, safety: boolean): number {
+    const perPlayerMax = typeof player.maxDrink === 'number'
+            ? player.maxDrink
+            : MAX_DRINK_BASE
+    
+    // セーフティONの場合は、2杯を上限とする
+    return safety ? Math.min(MAX_DRINK_SAFETY, perPlayerMax) : perPlayerMax
+}
+
+// あらゆる補正をかけた後で、Li~maxの範囲に収めるためのユーティリティ
+export function clampFinalWithAllCaps(
+    value: number,
+    player: Player,
+    safety: boolean,
+) : number {
+    const maxCap = getMaxCapForPlayer(player, safety)
+    const min = player.Li ?? 0
+    return clamp(value, min, maxCap)
+}
 
 // 出現させたい値(values)と重み(weights)を渡すと、重いほど出やすいように値をランダムで1つ返す
 // 例: values = [0,1,2,3], weights=[1,4,4,1]なら1と2が出やすい
@@ -182,14 +203,9 @@ export function calcDrinkForPlayer(
     )
 
     const passiveMod = getPassiveModifier(player)
-
     const rawTotal = base + moodMod + eventMod + passiveMod
-
-    // 上限はセーフティONの場合少し低めにする
-    const maxCap = safety ? MAX_DRINK_SAFETY : MAX_DRINK_BASE
     
-    const final = clamp(rawTotal, player.Li, maxCap)
-
+    const final = clampFinalWithAllCaps(rawTotal, player, safety)
 
     return {
         playerId: player.id,
