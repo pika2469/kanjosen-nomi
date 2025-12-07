@@ -22,7 +22,8 @@ export const TurnPage = () => {
         moveStation,
         runProgressPhase,
         runStationPhase,
-        unlockPassive,
+        debugGrantPassive,
+        clearHands,
     } = useGameStore()
 
     // 代表プレイヤー(activePlayer)と今処理中のプレイヤー(phasePlayer)
@@ -90,8 +91,12 @@ export const TurnPage = () => {
         const targetId = debugPassiveTargetId || activePlayer?.id
         if (!targetId) return
         if (!debugPassiveId) return
-        unlockPassive(targetId, debugPassiveId as PassiveId)
+        debugGrantPassive(targetId, debugPassiveId as PassiveId)
+    }
 
+    // 全プレイヤーの手札をすべて廃棄（デバッグ用）
+    const handleDebugClearHands = () => {
+        clearHands()
     }
 
     // 現在の杯数をXPへ反映(デバッグ用)
@@ -280,6 +285,13 @@ export const TurnPage = () => {
                         onClick={handleDebugApplyXp}
                     >
                         現在の杯数をXPに反映
+                    </button>
+                    <button
+                        type="button"
+                        className="rounded bg-red-100 px-3 py-1 text-sm text-red-700 hover:bg-red-200"
+                        onClick={handleDebugClearHands}
+                    >
+                        全員の手札を廃棄
                     </button>
                 </div>
 

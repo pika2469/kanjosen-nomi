@@ -119,6 +119,9 @@ type Store = {
 
     // パッシブ関連
     unlockPassive: (playerId: string, passiveId: PassiveId) => void
+
+    // 強制パッシブ付与（デバッグ用）
+    debugGrantPassive: (playerId: string, passiveId: PassiveId) => void
 }
 
 // Zustandストア本体
@@ -1284,6 +1287,29 @@ export const useGameStore = create<Store>((set, get) => ({
                 passives: [...p.passives, node.id],
             }
         })
+
+        set({ players: updatedPlayers })
+    },
+
+    // 強制パッシブ付与（デバッグ用）
+    debugGrantPassive: (playerId, passiveId) => {
+        const state = get()
+        const player = state.players.find((p) => p.id === playerId)
+        if (!player) return
+        
+        // すでに持っていれば何もしない（重複防止）
+        if (player.passives.includes(passiveId)) {
+            return
+        }
+
+        const updatedPlayers = state.players.map((p) =>
+            p.id === playerId
+                ? {
+                    ...p,
+                    passives: [...p.passives, passiveId],
+                }
+                : p,
+        )
 
         set({ players: updatedPlayers })
     },
