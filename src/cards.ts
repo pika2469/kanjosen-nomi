@@ -104,11 +104,11 @@ export const CARDS: Card[] = [
         description: '次ターンのカードドロー+1枚(ロジックは未実装)',
     },
     {
-        id: 'sp_mood_break',
+        id: 'sp_gain_xp',
         kind: 'special',
         rarity: 'R',
-        name: 'ムードブレイク',
-        description: '駅イベント補正を無効化(ロジックは未実装)',
+        name: '経験値ブースト',
+        description: '使用者のXPが+1される',
     },
     {
         id: 'sp_random_change',

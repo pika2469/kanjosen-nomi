@@ -44,7 +44,7 @@ export type CardId =
     | 'safe_yukkuri_mode'
     | 'sp_reroll'
     | 'sp_draw_plus1'
-    | 'sp_mood_break'
+    | 'sp_gain_xp'
     | 'sp_random_change'
     | 'sp_reverse'
 
@@ -203,6 +203,9 @@ export interface GameStateSlice {
 
     // balanceブースト(R/SRのみ出現)の今ターン使用有無
     boostRareUsedForTurn: boolean
+
+    // デュアルロール中のプレイヤーと候補結果
+    dualRollPending: DualRollState | null
 }
 
 // パッシブ関連 -----------------------------------------------------
@@ -234,4 +237,12 @@ export interface PassiveNode {
     description: string
     costSp: number  // 必要SP
     requires?: PassiveId[]    // 前提パッシブ（なければundefined)
+}
+
+export type DualRollChoice = 'A' | 'B'
+
+export type DualRollState = {
+    playerId: string
+    optionA: DrinkResult
+    optionB: DrinkResult
 }

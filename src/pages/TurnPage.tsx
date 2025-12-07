@@ -24,6 +24,7 @@ export const TurnPage = () => {
         runStationPhase,
         debugGrantPassive,
         clearHands,
+        resolveDualRoll,
     } = useGameStore()
 
     // 代表プレイヤー(activePlayer)と今処理中のプレイヤー(phasePlayer)
@@ -33,6 +34,9 @@ export const TurnPage = () => {
     // パッシブ付与用デバッグ状態
     const [debugPassiveId, setDebugPassiveId] = useState('')
     const [debugPassiveTargetId, setDebugPassiveTargetId] = useState('')
+
+    // 狙い撃ちターゲットID(atk_shoot用)
+    const [shootTargetId, setShootTargetId] = useState<string>('')
 
     // デバッグ用：フェーズの日本語ラベル
     const phaseLabelMap: Record<string, string> = {
@@ -73,6 +77,14 @@ export const TurnPage = () => {
     // カード使用(処理中プレイヤー)
     const handleUseCard = (cardId: CardId) => {
         if (!phasePlayer) return
+
+        if (cardId === 'atk_shoot') {
+            // 狙い撃ち：選択されたターゲットIDを渡す
+            const targetId = shootTargetId || undefined
+            useCard(phasePlayer.id, cardId, targetId)
+            return
+        }
+
         useCard(phasePlayer.id, cardId)
     }
 
@@ -223,22 +235,54 @@ export const TurnPage = () => {
                                 現在のフェーズは【6】ではありません
                             </p>
                         )}
-                        <div className="flex flex-wrap justify-center gap-2">
-                            {phasePlayer.hand.map((cardId, idx) => (
-                                <button
-                                    key={`${cardId}-${idx}`}
-                                    type="button"
-                                    disabled={!isUseCardsPhase}
-                                    onClick={() => handleUseCard(cardId)}
-                                    className={`rounded px-3 py-1 text-xs font-mono ${
-                                        isUseCardsPhase
-                                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'    
-                                    }`}
-                                >
-                                    {cardId}
-                                </button>
-                            ))}
+
+                        <div className="flex flex-col gap-2">
+                            {phasePlayer.hand.map((cardId, idx) => {
+                                const isShoot = cardId === 'atk_shoot'
+
+                                return(
+                                    <div
+                                        key={`${cardId}-${idx}`}
+                                        className="flex flex-col gap-2 rounded border bg-white px-2 py-1 text-xs md:flex-row md:items-center md:justify-between"
+                                    >
+                                        <div className="font-mono">
+                                            {cardId}
+                                        </div>
+
+                                        <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
+                                            {isShoot && (
+                                                <select
+                                                    className="rounded border px-2 py-1 text-xs"
+                                                    value={shootTargetId}
+                                                    onChange={(e) => setShootTargetId(e.target.value)}
+                                                >
+                                                    <option value="">
+                                                        ターゲット未選択
+                                                    </option>
+                                                    {players.map((p) => (
+                                                        <option key={p.id} value={p.id}>
+                                                            {p.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                disabled={!isUseCardsPhase}
+                                                onClick={() => handleUseCard(cardId)}
+                                                className={`rounded px-3 py-1 text-xs font-mono ${
+                                                    isUseCardsPhase
+                                                        ? `bg-purple-600 text-white hover:bg-purple-700`
+                                                        : `cursor-not-allowed bg-gray-200 text-gray-400`
+                                                    }`}
+                                            >
+                                                使用
+                                            </button>
+                                        </div>
+                                    </div>
+                                )
+                            })}
                         </div>
                     </>
                 )}
@@ -498,6 +542,49 @@ export const TurnPage = () => {
                         </div>
                     )}
                 </div>
+
+                {/* デュアルロール候補 */}
+                {game.dualRollPending && (
+                    <div className="rounded border border-purple-300 bg-purple-50 p-3 text-xs">
+                        <h2 className="mb-1 text-sm font-semibold text-purple-800">
+                            デュアルロール選択中
+                        </h2>
+                        <p className="mb-1">
+                            プレイヤー: {
+                                players.find((p) => p.id === game.dualRollPending!.playerId)?.name ?? game.dualRollPending.playerId
+                            }
+                        </p>
+                        <div className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                            <div className="rounded bg-white p-2">
+                                <div className="font-semibold">候補A</div>
+                                <div>杯数: {game.dualRollPending.optionA.final}</div>
+                            </div>
+                            <div className="rounded bg-white p-2">
+                                <div className="font-semibold">候補B</div>
+                                <div>杯数: {game.dualRollPending.optionB.final}</div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                className="rounded bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700"
+                                onClick={() => resolveDualRoll('A')}
+                            >
+                                候補Aを採用
+                            </button>
+                            <button
+                                type="button"
+                                className="rounded bg-purple-600 px-3 py-1 text-xs text-white hover:bg-purple-700"
+                                onClick={() => resolveDualRoll('B')}
+                            >
+                                候補Bを採用
+                            </button>
+                        </div>
+                        <p className="mt-1 text-[10px] text-purple-700">
+                            ※候補を選ぶと currentDrinks に反映
+                        </p>
+                    </div>
+                )}
             </section>
 
         </div>

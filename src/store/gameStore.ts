@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Player, Settings, GameStateSlice, Phase, Mood, Page, UiState, Direction, CardId, PassiveId, DrinkResult } from '../types/game'
+import type { Player, Settings, GameStateSlice, Phase, Mood, Page, UiState, Direction, CardId, PassiveId, DrinkResult, DualRollChoice } from '../types/game'
 import { loadPlayers, loadSettings, saveSettings, upsertPlayer, removePlayer, replacePlayers, resetAll } from '../lib/db'
 import { MOODS } from '@/constants/mood'
 import { getNextStationId } from '@/utils'
@@ -109,6 +109,9 @@ type Store = {
     runRollPhase: () => void
     runRollPhaseForPlayer: (playerIndex: number) => void
 
+    // デュアルロール用
+    resolveDualRoll: (choice: DualRollChoice) => void
+
     // 成長判定
     runProgressPhase: () => void
 
@@ -116,7 +119,7 @@ type Store = {
     drawCard: (playerId: string) => void
     drawToAll: () => void
     clearHands: () => void
-    useCard: (playerId: string, cardId: CardId) => void
+    useCard: (playerId: string, cardId: CardId, targetPlayerid?: string) => void
 
     // パッシブ関連
     unlockPassive: (playerId: string, passiveId: PassiveId) => void
@@ -153,6 +156,7 @@ export const useGameStore = create<Store>((set, get) => ({
         lastUsedCard: null,
         cardUsageBlockedForPlayerId: null,
         boostRareUsedForTurn: false,
+        dualRollPending: null,
     },
 
     ui: {
@@ -290,6 +294,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 lastUsedCard: null,
                 cardUsageBlockedForPlayerId: null,
                 boostRareUsedForTurn: false,
+                dualRollPending: null,
             },
         })
 
@@ -750,7 +755,47 @@ export const useGameStore = create<Store>((set, get) => ({
         const activePlayer = players[game.activePlayerIndex] ?? null
         const activePlayerId = activePlayer ? activePlayer.id : null
 
-        const result = calcDrinkForPlayer(
+        const hasDualRoll = target.passives?.includes('trick_dual_roll')
+
+        if (!hasDualRoll) {
+            // デュアルロールを持っていない場合、通常の1回ロール
+            const result = calcDrinkForPlayer(
+                target,
+                game.mood,
+                game.currentEvent,
+                settings.safety,
+                activePlayerId,
+                players,
+            )
+
+            set((state) => {
+                // 同じplayerIdの結果があれば上書き、なければ追加
+                const others = state.game.currentDrinks.filter(
+                    (r) => r.playerId !== result.playerId,
+                )
+
+                // nextTurnPlusBiasとnextTurnSlowBias一時フラグを初期化
+                const newPlayers = state.players.map((p, idx) =>
+                    idx === playerIndex
+                        ? { ...p, nextTurnPlusBias: false, nextTurnSlowBias: false }
+                        : p,
+                )
+
+                return {
+                    players: newPlayers,
+                    game: {
+                        ...state.game,
+                        currentDrinks: [...others, result],
+                        dualRollPending: null,
+                    },
+                }
+            })
+            return
+        }
+
+        // デュアルロール処理
+        // 1回目
+        const resultA = calcDrinkForPlayer(
             target,
             game.mood,
             game.currentEvent,
@@ -759,24 +804,57 @@ export const useGameStore = create<Store>((set, get) => ({
             players,
         )
 
+        // 2回目
+        const resultB = calcDrinkForPlayer(
+            target,
+            game.mood,
+            game.currentEvent,
+            settings.safety,
+            activePlayerId,
+            players,
+        )
+        // デュアルロール中は currentDrinks をまだ確定しない
+        // とりあえず nextTurnPlusBias はリセットする
         set((state) => {
-            // 同じplayerIdの結果があれば上書き、なければ追加
-            const others = state.game.currentDrinks.filter(
-                (r) => r.playerId !== result.playerId,
-            )
-
-            // nextTurnPlusBiasとnextTurnSlowBias一時フラグを初期化
             const newPlayers = state.players.map((p, idx) =>
                 idx === playerIndex
-                ? { ...p, nextTurnPlusBias: false, nextTurnSlowBias: false }
-                : p,
+                    ? {...p, nextTurnPlusBias: false}
+                    : p,
             )
 
             return {
                 players: newPlayers,
                 game: {
                     ...state.game,
-                    currentDrinks: [...others, result],
+                    dualRollPending: {
+                        playerId: target.id,
+                        optionA: resultA,
+                        optionB: resultB,
+                    },
+                },
+            }
+        })
+    },
+
+    resolveDualRoll: (choice) => {
+        const stateBefore = get()
+        const pending = stateBefore.game.dualRollPending
+        if (!pending) return
+
+        const chosen = choice === 'A' ? pending.optionA : pending.optionB
+
+        set((state) => {
+            // まず同じplayerIdの既存結果を除外
+            const others = state.game.currentDrinks.filter(
+                (r) => r.playerId !== pending.playerId,
+            )
+
+            return {
+                ...state,
+                game: {
+                    ...state.game,
+                    currentDrinks: [...others, chosen],
+                    dualRollPending: null,
                 },
             }
         })
@@ -883,7 +961,10 @@ export const useGameStore = create<Store>((set, get) => ({
         })
     },
 
-    useCard: (playerId: string, cardId: CardId) => {
+    // -------------------------------------------------------    
+    // フェーズ6: カード使用
+    // -------------------------------------------------------
+    useCard: (playerId: string, cardId: CardId, targetPlayerId?: string) => {
         const stateBefore = get()
         const card = getCardById(cardId)
         if (!card) return
@@ -1222,16 +1303,31 @@ export const useGameStore = create<Store>((set, get) => ({
 
             case 'atk_minna_de_kanpai': {
                 // みんなで乾杯:全員+1
-                const targets = updatedPlayers.map((p) => p.id)
+                // ただしsafe_field_shield持ちは「自分に対する全体+1」を無効化する
 
-                plusTo(targets, 1, playerId)
+                // フィールドシールド持ちのプレイヤーID一覧
+                const shieldedIds = new Set(
+                    updatedPlayers
+                        .filter((p) => p.passives?.includes('safe_field_shield'))
+                        .map((p) => p.id)
+                )
 
-                // 攻撃トリガー:全員にもう1回+1
+                // 攻撃の発動者
+                const sourceId = playerId
+
+                // 実際に加算対象となるプレイヤー
+                const baseTargets = updatedPlayers
+                        .map((p) => p.id)
+                        .filter((tid) => !shieldedIds.has(tid))
+                
+                // ベース+1
+                plusTo(baseTargets, 1, sourceId)
+
+                // 攻撃トリガー: 50%でさらに+1
                 if (hasTrigger && Math.random() < 0.5) {
-                    plusTo(targets, 1, playerId)
+                    plusTo(baseTargets, 1, sourceId)
                 }
 
-                // フィールドシールドによる「全体+1無効」は、ここではまだ反映しない
                 break
             }
 
@@ -1255,7 +1351,7 @@ export const useGameStore = create<Store>((set, get) => ({
 
             case 'atk_shoot': {
                 // 狙い撃ち
-                // 今ターン杯数が確定しているプレイヤーの中から1人の杯数を再挑戦
+                // 指定1名の1人の今ターンの杯数を再挑戦
 
                 if (updatedDrinks.length === 0) {
                     break
@@ -1263,22 +1359,31 @@ export const useGameStore = create<Store>((set, get) => ({
 
                 const { game, settings, players } = stateBefore
 
-                // 対象プレイヤーを currentDrinks からランダム選択
-                const picked =
-                    updatedDrinks[Math.floor(Math.random() * updatedDrinks.length)]
-                
-                const targetPlayer = players.find(
-                    (p) => p.id === picked.playerId,
-                )
+                // 1) 対象プレイヤーIDを決定
+                let targetId = targetPlayerId
+
+                // targetIdが渡されなかった場合は、自分を含む全プレイヤーからランダム1人
+                if (!targetId) {
+                    const shuffled = [...updatedPlayers].sort(() => Math.random() - 0.5)
+                    const picked = shuffled[0]
+                    targetId = picked ? picked.id : undefined
+                }
+
+                if (!targetId) {
+                    break
+                }
+
+                // 2) 対象プレイヤー本体を取得
+                const targetPlayer = updatedPlayers.find((p) => p.id === targetId)
                 if (!targetPlayer) {
                     break
                 }
 
-                // 代表プレイヤーかどうか判定
-                const active = players[game.activePlayerIndex]
+                // 3) 代表プレイヤー判定
+                const active = players[game.activePlayerIndex] ?? null
                 const activeId = active ? active.id : null
 
-                // 対象プレイヤーの杯数を再計算
+                // 4) 対象プレイヤーの杯数を再計算
                 const newResult = calcDrinkForPlayer(
                     targetPlayer,
                     game.mood,
@@ -1288,41 +1393,29 @@ export const useGameStore = create<Store>((set, get) => ({
                     players,
                 )
 
-                // 対象プレイヤー分の DrinkResult を置き換え
-                updatedDrinks = updatedDrinks.map((d) =>
-                    d.playerId === picked.playerId ? newResult : d,
-                )
+                // 5) 対象プレイヤー分の DrinkResult を置き換え
+                const exists = updatedDrinks.some((d) => d.playerId === targetPlayer.id)
 
+                if (exists) {
+                    updatedDrinks = updatedDrinks.map((d) =>
+                        d.playerId === targetPlayer.id ? newResult: d,
+                    )
+                } else {
+                    updatedDrinks = [...updatedDrinks, newResult]
+                }
                 break
             }
 
-            case 'sp_mood_break': {
-                // ムードブレイク：
-                // 今ターンの杯数からムード補正だけを取り除く
-                // final から moodMod を引き、下限を Li に維持する
+            case 'sp_gain_xp': {
+                // 経験値ブースト：
+                // 使用したプレイヤーへXP+1
+                const updatedPlayers2 = updatedPlayers.map((p) => {
+                    if (p.id !== playerId) return p
 
-                if (updatedDrinks.length === 0) {
-                    break
-                }
-
-                updatedDrinks = updatedDrinks.map((d) => {
-                    const tPlayer = updatedPlayers.find(
-                        (p) => p.id === d.playerId,
-                    )
-                    if (!tPlayer) return d
-
-                    const min = tPlayer.Li ?? 0
-
-                    // ムード分だけ取り除いた新しい最終値
-                    const rawFinal = d.final - d.moodMod
-                    const newFinal = rawFinal < min ? min : rawFinal
-
-                    return {
-                        ...d,
-                        moodMod: 0,
-                        final: newFinal,
-                    }
+                    return applyXpAndLevelUp(p, 1)
                 })
+
+                updatedPlayers = updatedPlayers2
 
                 break
             }
