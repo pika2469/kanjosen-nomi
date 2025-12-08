@@ -49,7 +49,7 @@ export function RoulettePage() {
             </section>
 
             <section className="flex flex-wrap gap-2 text-xs text-gray-600">
-                <Button variant="outline" size="sm" onClick={() => setPage('turn')}>
+                <Button variant="outline" size="sm" onClick={() => setPage('mood')}>
                     ターン画面に戻る
                 </Button>
             </section>
