@@ -149,15 +149,21 @@ export interface PersistedData {
 
 // ページ種別（ページ切替に使用）
 export type Page =
-    | 'home'
-    | 'turn'
-    | 'turn_debug'
+    | 'home'            // ホームページ
+    | 'debug'           // デバッグページ（旧Turnページ）
     | 'roulette'
     | 'cardHand'
-    | 'result'
-    | 'settings'
-    | 'minigame'
+    | 'settings'        // 設定
+    | 'minigame'        // ミニゲームページ
     | 'passives'
+    | 'mood'            // 【1】ムードルーレット
+    | 'station'         // 【2】駅決定
+    | 'stationEvent'    // 【3】駅イベント
+    | 'roll'            // 【4】杯数抽選
+    | 'draw'            // 【5】カードドロー
+    | 'useCards'        // 【6】カード使用
+    | 'progress'        // 【7】成長判定
+    | 'result'          // 【8】結果表示
 
 export type UiState = {
     currentPage: Page

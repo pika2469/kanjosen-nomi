@@ -38,11 +38,11 @@ export function MainLayout({ children }: { children: ReactNode }) {
                         </Button>
 
                         <Button
-                            variant={ui.currentPage === 'turn' ? 'default' : 'outline'}
+                            variant={ui.currentPage === 'debug' ? 'default' : 'outline'}
                             size="sm"
-                            onClick={() => setPage('turn')}
+                            onClick={() => setPage('debug')}
                         >
-                            Turn
+                            Debug
                         </Button>
 
                         <Button
