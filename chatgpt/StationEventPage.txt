@@ -3,6 +3,34 @@ import { useGameStore } from '@/store/gameStore'
 export default function StationEventPage() {
     const { game, players, setPage, proceedPhase } = useGameStore()
     const activePlayer = players[game.activePlayerIndex] ?? null
+    const event = game.currentEvent
+    const stationId = game.currentStation
+
+    // 表示用ラベル
+    const eventTitle =
+        (event as any)?.title ??
+        (event as any)?.name ??
+        event?.id ??
+        'イベント未決定'
+
+    const eventDescription =
+        (event as any)?.description ??
+        'このイベントの説明文はまだ設定されていません'
+
+    // カード系効果の簡易ラベル
+    const eventEffectLabel =
+        event?.cardEffect === 'rep_draw_plus1'
+        ? '代表プレイヤー: カードドロー +1'
+        : event?.cardEffect === 'rep_skip_action'
+        ? '代表プレイヤー: このターンカード使用不可'
+        : event?.cardEffect
+        ? `イベント効果:${event.description}`
+        : 'イベント効果なし'
+
+    const handleNext = () => {
+        proceedPhase()
+        setPage('roll')
+    }
 
     return (
         <div className="mx-auto max-w-xl space-y-4 p-4">
@@ -17,18 +45,53 @@ export default function StationEventPage() {
                 </p>
                 )}
                 <p className="text-xs text-gray-600">
-                    現在駅: {game.currentStation ?? '未決定'}
+                    現在駅: {stationId ?? '未決定'}
                 </p>
             </header>
 
             <section className="rounded border bg-white p-3 text-sm">
-                <p className="mb-2 text-gray-700">
-                    駅イベントの内容を表示する画面
-                </p>
-                <p className="text-xs text-gray-600">
-                    現在イベントID: {game.currentEvent?.id ?? 'なし'}
-                </p>
+                {event ? (
+                    <div className="space-y-2">
+                        <div>
+                            <div className="text-xs font-semibold text-gray-500">
+                                イベント
+                            </div>
+                            <div className="text-base font-semibold">
+                                {eventTitle}
+                            </div>
+                        </div>
+
+                        <p className="text-xs text-gray-700 whitespace-pre-line">
+                            {eventDescription}
+                        </p>
+
+                        <div className="mt-2 space-y-1 text-xs">
+                            <div>
+                                <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-700">
+                                    {eventEffectLabel}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-xs text-gray-600">
+                        駅イベントが未定です。
+                        フェーズ2で駅を決定してからこの画面に戻ってください
+                    </p>
+                )}
             </section>
+
+            {/* デバッグ用： 生のイベントオブジェクトを表示 */}
+            {event && (
+                <section className="rounded border bg-slate-50 p-3 text-[11px]">
+                    <div className="mb-1 font-semibold text-slate-600">
+                        Debug: currentEvent JSON
+                    </div>
+                    <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-all font-monot">
+                        {JSON.stringify(event, null, 2)}
+                    </pre>
+                </section>
+            )}
 
             <section className="flex justify-between gap-2 text-xs">
                 <button
@@ -49,10 +112,7 @@ export default function StationEventPage() {
                 <button
                     type="button"
                     className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
-                    onClick={() => {
-                        proceedPhase()
-                        setPage('roll')
-                    }}
+                    onClick={handleNext}
                 >
                     次のフェーズへ
                 </button>
