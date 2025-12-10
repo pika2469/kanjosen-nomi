@@ -1,4 +1,4 @@
-// import { useState } from "react"
+import React from 'react'
 import { useEffect } from "react"
 import { useGameStore } from '@/store/gameStore'
 import "./index.css"                              // Tailwind を反映
@@ -25,7 +25,7 @@ import { TurnPage } from '@/pages/TurnPage' // デバッグページ
 
 // 未使用ページ
 import { PassivesPages } from '@/pages/PassivesPage'
-import { RoulettePage } from '@/pages/RoulettePage' // MoodPageに置き換え
+import { RoulettePage } from '@/pages/RoulettePage' // MoodPageに置き換え予定
 import { CardHandPage } from '@/pages/CardHandPage'
 
 // コンポーネント本体の宣言
@@ -36,60 +36,96 @@ export default function App() {
     bootstrap()
   }, [bootstrap])
 
-  let content = null
+  let content: React.ReactNode
 
   switch (ui.currentPage) {
     case 'home':
       content = <HomePage />
       break
+
     case 'debug':
       content = <TurnPage />
-      break    
+      break
+
     case 'roulette':
       content = <RoulettePage />
       break
+
     case 'cardHand':
       content = <CardHandPage />
       break
+
     case 'result':
       content = <ResultPage />
       break
+
     case 'settings':
       content = <SettingsPage />
       break
+
     case 'minigame':
       content = <MiniGameHubPage />
       break
+
     case 'passives':
       content = <PassivesPages />
       break
+
+    // --- ゲーム進行ページ ---
     case 'mood':
-      return <MoodPage />
+      content = <MoodPage />
+      break
 
     case 'station':
-      return <StationPage />
+      content = <StationPage />
+      break
 
     case 'stationEvent':
-      return <StationEventPage />
-    
+      content = <StationEventPage />
+      break
+
     case 'roll':
-      return <RollPage />
-      
+      content = <RollPage />
+      break
+
     case 'draw':
-      return <DrawPage />
-    
+      content = <DrawPage />
+      break
+
     case 'useCards':
-      return <UseCardsPage />
-    
+      content = <UseCardsPage />
+      break
+
     case 'progress':
-      return <ProgressPage />
-    
+      content = <ProgressPage />
+      break
+
+    // ------------------------------------------
     default:
       content = <HomePage />
+      break
   }
 
-  // JSX (画面描画)
+  // ゲーム進行ページかどうかで nav の種類を切り替え
+  const gamePages = [
+    'mood',
+    'station',
+    'stationEvent',
+    'roll',
+    'draw',
+    'useCards',
+    'progress',
+    'result',
+  ] as const
+
+  const footerVariant: 'default' | 'game' =
+    (gamePages as readonly string[]).includes(ui.currentPage)
+      ? 'game'
+      : 'default'
+
   return (
-    <MainLayout>{content}</MainLayout>
+    <MainLayout footerVariant={footerVariant}>
+      {content}
+    </MainLayout>
   )
 }
