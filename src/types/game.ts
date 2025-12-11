@@ -195,6 +195,9 @@ export interface GameStateSlice {
     currentStation: StationId | null
     visitedStations: StationId[]
 
+    // 駅情報保持
+    lastStationSteps: number | null
+    lastStationDirection: Direction | null // 'cw' | 'ccw'
     // 今ターンの駅イベント（なければnull）
     currentEvent: StationEvent | null
 

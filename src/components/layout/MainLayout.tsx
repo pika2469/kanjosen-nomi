@@ -1,5 +1,6 @@
 // src/components/layout/MainLayout.tsx
 import React from 'react'
+import type { Direction } from '@/types/game'
 import { useGameStore } from '@/store/gameStore'
 
 type MainLayoutProps = {
@@ -17,7 +18,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     players,
     setPage,
     spinMood,
-    runStationPhase,
     proceedPhase,
   } = useGameStore()
 
@@ -39,12 +39,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
 
       case 'station': {
-        // 1〜6駅、時計回り / 反時計回りをランダムに決定
-        const steps = Math.floor(Math.random() * 6) + 1
-        const direction = Math.random() < 0.5 ? 'cw' : 'ccw' // Direction 型と一致していればOK
+        const state = useGameStore.getState()
+        const { game, runStationPhase, setPhase, setPage } = state
+        
+        // まだ駅が決まっていなければここで決定
+        if (game.lastStationSteps == null || game.lastStationDirection == null) {
+          const steps = Math.floor(Math.random() * 6) + 1
+          const direction: Direction =
+            Math.random() < 0.5 ? 'cw' : 'ccw'
+          runStationPhase(steps, direction)
+        }
 
-        runStationPhase(steps, direction as any) // 駅＋駅イベントを決定
-        proceedPhase()                           // phase: station -> stationEvent
+        // 駅イベントページへ
+        setPhase('stationEvent')
         setPage('stationEvent')
         break
       }

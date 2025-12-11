@@ -119,7 +119,7 @@ type Store = {
     drawCard: (playerId: string) => void
     drawToAll: () => void
     clearHands: () => void
-    useCard: (playerId: string, cardId: CardId) => void
+    useCard: (playerId: string, cardId: CardId, targetPlayerid?: string) => void
 
     // パッシブ関連
     unlockPassive: (playerId: string, passiveId: PassiveId) => void
@@ -151,6 +151,8 @@ export const useGameStore = create<Store>((set, get) => ({
         phasePlayerIndex: null,
         currentStation: null,
         visitedStations: [],
+        lastStationSteps: null,
+        lastStationDirection: null,
         currentEvent: null,
         currentDrinks: [],
         lastUsedCard: null,
@@ -289,6 +291,8 @@ export const useGameStore = create<Store>((set, get) => ({
                 mood: null,
                 currentStation: null,
                 visitedStations: [],
+                lastStationSteps: null,
+                lastStationDirection: null,
                 currentEvent: null,
                 currentDrinks: [],
                 lastUsedCard: null,
@@ -345,6 +349,8 @@ export const useGameStore = create<Store>((set, get) => ({
                 lastUsedCard: null,
                 cardUsageBlockedForPlayerId: null,
                 boostRareUsedForTurn: false,
+                lastStationSteps: null,
+                lastStationDirection: null,
             },
         })
 
@@ -614,10 +620,8 @@ export const useGameStore = create<Store>((set, get) => ({
         const { game, settings } = get()
 
         // 1: 次の駅を決める
-        const baseStationId = game.currentStation ?? settings.startStationId
-
         const nextId = getNextStationId(
-            baseStationId,
+            game.currentStation,
             steps,
             direction,
             settings.allowDuplicateStations,
@@ -629,77 +633,53 @@ export const useGameStore = create<Store>((set, get) => ({
 
         // 3: state更新
         set((state) => {
-
             // 現在の代表プレイヤーを取得
             const activePlayer = state.players[state.game.activePlayerIndex]
 
             // 訪問済駅リストを更新
             const alreadyVisited = state.game.visitedStations.includes(nextId)
             const newVisited = alreadyVisited
-                ? state.game.visitedStations
-                : [...state.game.visitedStations, nextId]
-            
+            ? state.game.visitedStations
+            : [...state.game.visitedStations, nextId]
+
             let updatedPlayers = state.players
             let cardUsageBlockedForPlayerId = state.game.cardUsageBlockedForPlayerId
 
             // 乗換イベントA: 代表カードドロー+1枚
             if (event && event.cardEffect === 'rep_draw_plus1' && activePlayer) {
-                const isBalance = state.game.mood === 'balance'
-                let boostUsed = state.game.boostRareUsedForTurn ?? false
-                
-                updatedPlayers = state.players.map((p, idx) => {
-                    if (p.id !== activePlayer.id) return p
+            updatedPlayers = state.players.map((p) => {
+                if (p.id !== activePlayer.id) return p
 
-                    // 手札が上限ならドローしない
-                    if (p.hand.length >= p.handSizeMax) {
-                        return p
-                    }
-
-                    const isRep = idx === state.game.activePlayerIndex
-                    const forceRareOnly = isBalance && isRep && !boostUsed
-
-                    const newCardId = drawRandomCardId(p, {
-                        mood: state.game.mood,
-                        forceRareOnly,
-                    })
-
-                    if (forceRareOnly) {
-                        boostUsed = true
-                    }
-
-                    return {
-                        ...p,
-                        hand: [...p.hand, newCardId],
-                    }
-                })
-
-                // balanceブーストを使った場合はゲームステートに反映
-                if (isBalance && !state.game.boostRareUsedForTurn && boostUsed) {
-                    state = {
-                        ...state,
-                        game: {
-                            ...state.game,
-                            boostRareUsedForTurn: true,
-                        },
-                    }
+                // 手札が上限ならドローしない
+                if (p.hand.length >= p.handSizeMax) {
+                return p
                 }
+
+                const newCardId = drawRandomCardId(p)
+                return {
+                ...p,
+                hand: [...p.hand, newCardId],
+                }
+            })
             }
 
             // 乗換イベントB: 代表はこのターンカード使用不可
             if (event && event.cardEffect === 'rep_skip_action' && activePlayer) {
-                cardUsageBlockedForPlayerId = activePlayer.id
+            cardUsageBlockedForPlayerId = activePlayer.id
             }
 
             return {
-                ...state,
-                players: updatedPlayers,
-                game: {
-                    ...state.game,
-                    currentStation: nextId,
-                    visitedStations: newVisited,
-                    currentEvent: event,
-                    cardUsageBlockedForPlayerId,
-                },
+            ...state,
+            players: updatedPlayers,
+            game: {
+                ...state.game,
+                currentStation: nextId,
+                visitedStations: newVisited,
+                currentEvent: event,
+                cardUsageBlockedForPlayerId,
+                lastStationSteps: steps,
+                lastStationDirection: direction,
+            },
             }
         })
     },
@@ -961,7 +941,10 @@ export const useGameStore = create<Store>((set, get) => ({
         })
     },
 
-    useCard: (playerId: string, cardId: CardId) => {
+    // -------------------------------------------------------    
+    // フェーズ6: カード使用
+    // -------------------------------------------------------
+    useCard: (playerId: string, cardId: CardId, targetPlayerId?: string) => {
         const stateBefore = get()
         const card = getCardById(cardId)
         if (!card) return
@@ -1348,7 +1331,7 @@ export const useGameStore = create<Store>((set, get) => ({
 
             case 'atk_shoot': {
                 // 狙い撃ち
-                // 今ターン杯数が確定しているプレイヤーの中から1人の杯数を再挑戦
+                // 指定1名の1人の今ターンの杯数を再挑戦
 
                 if (updatedDrinks.length === 0) {
                     break
@@ -1356,22 +1339,31 @@ export const useGameStore = create<Store>((set, get) => ({
 
                 const { game, settings, players } = stateBefore
 
-                // 対象プレイヤーを currentDrinks からランダム選択
-                const picked =
-                    updatedDrinks[Math.floor(Math.random() * updatedDrinks.length)]
-                
-                const targetPlayer = players.find(
-                    (p) => p.id === picked.playerId,
-                )
+                // 1) 対象プレイヤーIDを決定
+                let targetId = targetPlayerId
+
+                // targetIdが渡されなかった場合は、自分を含む全プレイヤーからランダム1人
+                if (!targetId) {
+                    const shuffled = [...updatedPlayers].sort(() => Math.random() - 0.5)
+                    const picked = shuffled[0]
+                    targetId = picked ? picked.id : undefined
+                }
+
+                if (!targetId) {
+                    break
+                }
+
+                // 2) 対象プレイヤー本体を取得
+                const targetPlayer = updatedPlayers.find((p) => p.id === targetId)
                 if (!targetPlayer) {
                     break
                 }
 
-                // 代表プレイヤーかどうか判定
-                const active = players[game.activePlayerIndex]
+                // 3) 代表プレイヤー判定
+                const active = players[game.activePlayerIndex] ?? null
                 const activeId = active ? active.id : null
 
-                // 対象プレイヤーの杯数を再計算
+                // 4) 対象プレイヤーの杯数を再計算
                 const newResult = calcDrinkForPlayer(
                     targetPlayer,
                     game.mood,
@@ -1381,41 +1373,29 @@ export const useGameStore = create<Store>((set, get) => ({
                     players,
                 )
 
-                // 対象プレイヤー分の DrinkResult を置き換え
-                updatedDrinks = updatedDrinks.map((d) =>
-                    d.playerId === picked.playerId ? newResult : d,
-                )
+                // 5) 対象プレイヤー分の DrinkResult を置き換え
+                const exists = updatedDrinks.some((d) => d.playerId === targetPlayer.id)
 
+                if (exists) {
+                    updatedDrinks = updatedDrinks.map((d) =>
+                        d.playerId === targetPlayer.id ? newResult: d,
+                    )
+                } else {
+                    updatedDrinks = [...updatedDrinks, newResult]
+                }
                 break
             }
 
-            case 'sp_mood_break': {
-                // ムードブレイク：
-                // 今ターンの杯数からムード補正だけを取り除く
-                // final から moodMod を引き、下限を Li に維持する
+            case 'sp_gain_xp': {
+                // 経験値ブースト：
+                // 使用したプレイヤーへXP+1
+                const updatedPlayers2 = updatedPlayers.map((p) => {
+                    if (p.id !== playerId) return p
 
-                if (updatedDrinks.length === 0) {
-                    break
-                }
-
-                updatedDrinks = updatedDrinks.map((d) => {
-                    const tPlayer = updatedPlayers.find(
-                        (p) => p.id === d.playerId,
-                    )
-                    if (!tPlayer) return d
-
-                    const min = tPlayer.Li ?? 0
-
-                    // ムード分だけ取り除いた新しい最終値
-                    const rawFinal = d.final - d.moodMod
-                    const newFinal = rawFinal < min ? min : rawFinal
-
-                    return {
-                        ...d,
-                        moodMod: 0,
-                        final: newFinal,
-                    }
+                    return applyXpAndLevelUp(p, 1)
                 })
+
+                updatedPlayers = updatedPlayers2
 
                 break
             }

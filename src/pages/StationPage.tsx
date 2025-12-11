@@ -1,109 +1,160 @@
+// src/pages/StationPage.tsx
 import { useGameStore } from '@/store/gameStore'
-import { useState } from 'react'
-import type { Direction } from '@/types/game'
+import { STATIONS } from '@/stations'
+import stationDiceImg from '@/assets/station_dice_dummy3.png'
+import type { Direction, StationId } from '@/types/game'
 
+function getStationName(id: StationId | null | undefined): string {
+  if (!id) return '未設定'
+  const s = STATIONS.find((st) => st.id === id)
+  return s ? s.name : String(id)
+}
 
 export default function StationPage() {
-    const { game, players, setPage, proceedPhase, runStationPhase } = useGameStore()
-    const activePlayer = players[game.activePlayerIndex] ?? null
+  const {
+    game,
+    players,
+    settings,
+    runStationPhase,
+  } = useGameStore()
 
-    // 直近の「進んだ駅数」と「方向」を表示するためのローカル状態
-    const [lastSteps, setLastSteps] = useState<number | null>(null)
-    const [lastDirection, setLastDirection] = useState<Direction | null>(null)
+  const activePlayer = players[game.activePlayerIndex] ?? null
 
-    const directionLabel =
-            lastDirection === 'cw'
-                ? '時計回り'
-                : lastDirection === 'ccw'
-                ? '反時計回り'
-                : ''
-    
-    // 1~6駅 & 方向をランダムに決定して、駅+駅イベントを更新
-    const handleRandomStation = () => {
-        const steps = Math.floor(Math.random() * 6) + 1
-        const direction: Direction = Math.random() < 0.5 ? 'cw' : 'ccw'
+  // サイコロクリックで駅決定
+  const handleRoll = () => {
+    // フェーズが station 以外、またはすでに決定済なら何もしない
+    if (game.phase !== 'station') return
+    if (game.lastStationSteps != null) return
 
-        runStationPhase(steps, direction)
-        setLastSteps(steps)
-        setLastDirection(direction)
-    }
+    const steps = Math.floor(Math.random() * 6) + 1 // 1〜6
+    const direction: Direction = Math.random() < 0.5 ? 'cw' : 'ccw'
 
-    // 「次のフェーズへ」押下時、まだ駅/イベントが決まっていない場合の対応
-    const handleGoNext = () => {
-        if (!game.currentStation || !game.currentEvent) {
-            handleRandomStation()
-        }
-        proceedPhase()
-        setPage('stationEvent')
-    }
+    runStationPhase(steps, direction)
+  }
 
-    return (
-        <div className="mx-auto max-w-xl space-y-4 p-4">
-            <header className="space-y-1">
-                <h1 className="text-lg font-semibold">【2】駅決定</h1>
-                <p className="text-xs text-gray-600">
-                    現在フェーズ: {game.phase} / ターン: {game.turn}
-                </p>
-                {activePlayer && (
-                <p className="text-xs text-gray-700">
-                    代表プレイヤー: {activePlayer.name}
-                </p>
-                )}
-                <p className="text-xs text-gray-600">
-                    現在駅: {game.currentStation ?? '未決定'}
-                </p>
-            </header>
+  const currentStationId =
+    game.currentStation ?? settings.startStationId ?? null
+  const currentStationName = getStationName(currentStationId)
 
-            <section className="rounded border bg-white p-3 text-sm space-y-2">
-                <p className="text-gray-700">
-                    簡易版として、1~6駅のランダム移動+方向ランダムで次の駅を決定
-                </p>
-                <button
-                    type="button"
-                    className="rounded bg-indigo-600 px-3 py-1 text-xs text-white hover:bg-indigo-700"
-                    onClick={handleRandomStation}
-                >
-                    駅をランダムに決める
-                </button>
+  const moved = game.lastStationSteps != null && game.lastStationDirection != null
 
-                <div className="mt-2 text-xs text-gray-700 space-y-1">
-                    <p>
-                        直近の決定:{' '}
-                        {lastSteps && lastDirection
-                            ? `${directionLabel}に${lastSteps}駅移動`
-                            : 'まだ決定されていません'
-                        }
-                    </p>
-                    <p>現在駅ID: {game.currentStation ?? '未決定'}</p>
-                    <p>駅イベントID: {game.currentEvent?.id ?? '未決定'}</p>
-                </div>
-            </section>
+  const directionLabel =
+    game.lastStationDirection === 'cw'
+      ? '時計回り'
+      : game.lastStationDirection === 'ccw'
+      ? '反時計回り'
+      : '未決定'
 
-            <section className="flex justify-between gap-2 text-xs">
-                <button
-                type="button"
-                className="rounded border px-3 py-1"
-                onClick={() => setPage('home')}
-                >
-                Homeへ
-                </button>
-                <div className="flex gap-2">
-                <button
-                    type="button"
-                    className="rounded border px-3 py-1"
-                    onClick={() => setPage('debug')}
-                >
-                    Debugページへ
-                </button>
-                <button
-                    type="button"
-                    className="rounded bg-green-600 px-3 py-1 text-white hover:bg-green-700"
-                    onClick={handleGoNext}
-                >
-                    次のフェーズへ
-                </button>
-                </div>
-            </section>
+  return (
+    <div className="flex h-full flex-col gap-4">
+      {/* ヘッダー（MoodPage と揃える） */}
+      <header className="space-y-2">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1 text-left">
+            <p className="text-[11px] font-semibold text-sky-500">
+              STEP 2 / Station
+            </p>
+            <h1 className="text-lg font-bold text-slate-900">
+              駅を決めよう
+            </h1>
+          </div>
+          {activePlayer && (
+            <div className="rounded-full bg-slate-800 px-3 py-1 text-[11px] text-white">
+              代表: {activePlayer.name}
+            </div>
+          )}
         </div>
-    )
+        <p className="text-xs text-slate-500">
+          このターンに向かう駅は、サイコロでランダムに決定されます。
+          サイコロをタップすると、1〜6駅のどこかへ移動します
+          （時計回り／反時計回りもランダム）。
+        </p>
+      </header>
+
+      {/* メインカード */}
+      <section className="flex flex-col items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm">
+        {/* サイコロ：クリックで駅決定（1ターン1回） */}
+        <button
+          type="button"
+          onClick={handleRoll}
+          disabled={moved}
+          className="
+            flex h-44 w-44 items-center justify-center
+            rounded-full bg-transparent outline-none
+            transition-transform duration-150
+            hover:scale-105 active:scale-95
+            disabled:cursor-default disabled:opacity-75
+          "
+          aria-label="駅を決めるサイコロ"
+        >
+          <img
+            src={stationDiceImg}
+            alt="駅決定サイコロ"
+            className="h-full w-full select-none rounded-full object-contain"
+            draggable={false}
+          />
+        </button>
+
+        {/* 今回の移動について */}
+        <div className="w-full rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-700">
+          <p className="mb-1 font-semibold text-slate-800">
+            今回の移動について
+          </p>
+
+          {moved ? (
+            <div className="space-y-1">
+              <p>
+                次の駅は
+                <span className="font-semibold">「{currentStationName}」</span>
+                です。
+              </p>
+              <p>
+                このターンでは
+                <span className="font-semibold">
+                  {' '}{game.lastStationSteps}駅
+                </span>
+                分、<span className="font-semibold">{directionLabel}</span>
+                に移動しました。
+              </p>
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-600">
+              まだこのターンの移動は決まっていません。
+              上のサイコロをタップすると、移動先の駅と移動距離・方向が決定されます。
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Debug 情報（縮め気味に） */}
+      <section className="rounded-2xl border bg-white px-4 py-3 text-[11px] text-slate-600 shadow-sm">
+        <div className="mb-1 flex items-center justify-between">
+          <span className="font-semibold text-slate-700">Debug</span>
+          <span className="text-[10px] text-slate-400">
+            フェーズ: {game.phase}
+          </span>
+        </div>
+        <dl className="space-y-1">
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-500">現在の駅</dt>
+            <dd className="text-right font-medium text-slate-800">
+              {currentStationName}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-500">訪問済み駅数</dt>
+            <dd className="text-right text-slate-800">
+              {game.visitedStations.length}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-500">重複訪問</dt>
+            <dd className="text-right text-slate-800">
+              {settings.allowDuplicateStations ? '許可する' : '同じ駅は避ける'}
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+  )
 }
