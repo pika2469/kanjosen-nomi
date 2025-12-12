@@ -23,6 +23,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     runStationPhase,
     runRollPhaseForPlayer,
     setPhasePlayerIndex,
+    drawCard,
   } = useGameStore()
 
   const isActive = (page: string) => ui.currentPage === page
@@ -85,14 +86,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
 
       case 'draw': {
-        // いま何人目を処理中かで、次が「次の人の roll」か「useCards」かを分岐
         const idx = game.phasePlayerIndex ?? 0
-        const count = players.length
-        const isLastPlayer = idx + 1 >= count
+        const p = players[idx]
+        if (!p) break
 
-        proceedPhase()          // phase: draw -> roll(次の人) or useCards(全員終了)
+        const alreadyDrawn = (game.drawnPlayerIds ?? []).includes(p.id)
 
-        setPage(isLastPlayer ? 'useCards' : 'roll')
+        // 未ドローならドローしてから次へ
+        if (!alreadyDrawn) {
+          drawCard(p.id)
+        }
+
+        // 次プレイヤーがいれば roll へ、いなければ useCards へ
+        if (idx + 1 < players.length) {
+          setPhase('roll')
+          setPhasePlayerIndex(idx + 1)
+          setPage('roll')
+        } else {
+          setPhase('useCards')
+          setPhasePlayerIndex(0)
+          setPage('useCards')
+        }
+
         break
       }
 

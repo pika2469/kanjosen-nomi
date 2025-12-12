@@ -159,6 +159,7 @@ export const useGameStore = create<Store>((set, get) => ({
         cardUsageBlockedForPlayerId: null,
         boostRareUsedForTurn: false,
         dualRollPending: null,
+        drawnPlayerIds: [],
     },
 
     ui: {
@@ -299,6 +300,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 cardUsageBlockedForPlayerId: null,
                 boostRareUsedForTurn: false,
                 dualRollPending: null,
+                drawnPlayerIds: [],
             },
         })
 
@@ -351,6 +353,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 boostRareUsedForTurn: false,
                 lastStationSteps: null,
                 lastStationDirection: null,
+                drawnPlayerIds: [],
             },
         })
 
@@ -880,12 +883,19 @@ export const useGameStore = create<Store>((set, get) => ({
                 }
             })
 
+            // drawフェーズのときだけ、「このターンのドロー済み」を立てる
+            let drawnPlayerIds = state.game.drawnPlayerIds ?? []
+            if (state.game.phase === 'draw') {
+                drawnPlayerIds = [...drawnPlayerIds, playerId]
+            }
+
             return { 
                 ...state, 
                 players,
                 game: {
                     ...state.game,
                     boostRareUsedForTurn: boostUsed,
+                    drawnPlayerIds,
                 },
             }
         })

@@ -215,6 +215,9 @@ export interface GameStateSlice {
 
     // デュアルロール中のプレイヤーと候補結果
     dualRollPending: DualRollState | null
+
+    // カードを引いたプレイヤーID
+    drawnPlayerIds: string[]
 }
 
 // パッシブ関連 -----------------------------------------------------

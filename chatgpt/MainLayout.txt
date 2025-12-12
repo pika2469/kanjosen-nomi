@@ -23,6 +23,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     runStationPhase,
     runRollPhaseForPlayer,
     setPhasePlayerIndex,
+    drawCard,
   } = useGameStore()
 
   const isActive = (page: string) => ui.currentPage === page
@@ -85,14 +86,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
 
       case 'draw': {
-        // いま何人目を処理中かで、次が「次の人の roll」か「useCards」かを分岐
         const idx = game.phasePlayerIndex ?? 0
-        const count = players.length
-        const isLastPlayer = idx + 1 >= count
+        const p = players[idx]
+        if (!p) break
 
-        proceedPhase()          // phase: draw -> roll(次の人) or useCards(全員終了)
+        const alreadyDrawn = (game.drawnPlayerIds ?? []).includes(p.id)
 
-        setPage(isLastPlayer ? 'useCards' : 'roll')
+        // 未ドローならドローしてから次へ
+        if (!alreadyDrawn) {
+          drawCard(p.id)
+        }
+
+        // 次プレイヤーがいれば roll へ、いなければ useCards へ
+        if (idx + 1 < players.length) {
+          setPhase('roll')
+          setPhasePlayerIndex(idx + 1)
+          setPage('roll')
+        } else {
+          setPhase('useCards')
+          setPhasePlayerIndex(0)
+          setPage('useCards')
+        }
+
         break
       }
 
@@ -128,9 +143,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }
 
   return (
-    <div className="h-screen w-full">
+    <div 
+      className="h-screen w-full"
+      style={
+        {
+          // default / game でフッター高さが違うので分ける
+          '--footer-h': footerVariant === 'game' ? '50rem' : '6.25rem',
+        } as React.CSSProperties
+      }
+    >
       {/* 内側は max-w-width の枠だが背景色は付けない */}
-      <div className="mx-auto flex h-full w-full max-w-md flex-col">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col min-h-0">
 
         {/* 上部ヘッダー */}
         <header className="px-4 pt-6 pb-3">
@@ -141,7 +164,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </header>
 
         {/* メインコンテンツ */}
-        <main className="flex-1 overflow-y-auto px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
+        <main className="flex-1 overflow-y-auto px-4 pb-[calc(var(--footer-h)+env(safe-area-inset-bottom))]">
           {children}
         </main>
 
@@ -227,7 +250,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           </nav>
         ) : (
           // ゲーム版：3ボタン nav（Homeへ / Debug / 進む）
-           <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-8 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
+           <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
             <div className="grid grid-cols-3 gap-2 text-xs">
               <button
                 onClick={() => setPage('home')}
