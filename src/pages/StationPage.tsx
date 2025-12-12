@@ -49,7 +49,7 @@ export default function StationPage() {
     <div className="flex h-full flex-col gap-4">
       {/* ヘッダー（MoodPage と揃える） */}
       <header className="space-y-2">
-        <div className="flex items-start justify-between">
+        <div className="flex items-center justify-between">
           <div className="space-y-1 text-left">
             <p className="text-[11px] font-semibold text-sky-500">
               STEP 2 / Station
@@ -64,7 +64,7 @@ export default function StationPage() {
             </div>
           )}
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 text-left">
           このターンに向かう駅は、サイコロでランダムに決定されます。
           サイコロをタップすると、1〜6駅のどこかへ移動します
           （時計回り／反時計回りもランダム）。

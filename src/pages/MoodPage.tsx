@@ -13,7 +13,7 @@ export default function MoodPage() {
         <div className="flex h-full flex-col space-y-4">
             {/* ヘッダー（MainLayoutの中身用） */}
             <header className="space-y-2">
-                <div className="flex items-start justify-between">
+                <div className="flex items-center justify-between">
                     <div className="space-y-1 text-left">
                         <p className="text-[11px] font-semibold text-indigo-500">
                             STEP 1 / Mood

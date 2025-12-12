@@ -19,6 +19,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setPage,
     spinMood,
     proceedPhase,
+    setPhase,
+    runStationPhase,
+    runRollPhaseForPlayer,
+    setPhasePlayerIndex,
   } = useGameStore()
 
   const isActive = (page: string) => ui.currentPage === page
@@ -39,9 +43,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
 
       case 'station': {
-        const state = useGameStore.getState()
-        const { game, runStationPhase, setPhase, setPage } = state
-        
         // まだ駅が決まっていなければここで決定
         if (game.lastStationSteps == null || game.lastStationDirection == null) {
           const steps = Math.floor(Math.random() * 6) + 1
@@ -64,8 +65,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
 
       case 'roll': {
-        // 代表プレイヤー or phasePlayerIndex のプレイヤーの杯数ロールが行われる
-        proceedPhase()          // phase: roll -> draw（内部で runRollPhaseForPlayer 実行）
+        const idx = game.phasePlayerIndex ?? 0
+        const p = players[idx]
+        if (!p) break
+
+        // このプレイヤーが既に抽選済か？
+        const rolled = game.currentDrinks.some((d) => d.playerId === p.id)
+
+        // 未抽選ならここで抽選
+        if (!rolled) {
+          runRollPhaseForPlayer(idx)
+        }
+
+        // roll → drawへ
+        setPhase('draw')
+        setPhasePlayerIndex(idx)
         setPage('draw')
         break
       }
@@ -114,9 +128,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }
 
   return (
-    <div className="h-screen w-full">
+    <div 
+      className="h-screen w-full"
+      style={
+        {
+          // default / game でフッター高さが違うので分ける
+          '--footer-h': footerVariant === 'game' ? '50rem' : '6.25rem',
+        } as React.CSSProperties
+      }
+    >
       {/* 内側は max-w-width の枠だが背景色は付けない */}
-      <div className="mx-auto flex h-full w-full max-w-md flex-col">
+      <div className="mx-auto flex h-full w-full max-w-md flex-col min-h-0">
 
         {/* 上部ヘッダー */}
         <header className="px-4 pt-6 pb-3">
@@ -127,14 +149,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </header>
 
         {/* メインコンテンツ */}
-        <main className="flex-1 overflow-y-auto px-4 pb-24">
+        <main className="flex-1 overflow-y-auto px-4 pb-[calc(var(--footer-h)+env(safe-area-inset-bottom))]">
           {children}
         </main>
 
         {/* 下部ナビゲーション */}
         {footerVariant === 'default' ? (
           // 通常版：6ボタン nav（Home / Debug / Settings / Roulette / Cards / Result）
-           <nav className="fixed bottom-0 left-1/2 z-10 w-full max-w-md -translate-x-1/2 bg-white/95 px-3 py-4 shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
+           <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
             <div className="grid grid-cols-3 gap-2 text-xs">
               <button
                 type="button"
@@ -213,7 +235,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           </nav>
         ) : (
           // ゲーム版：3ボタン nav（Homeへ / Debug / 進む）
-           <nav className="fixed bottom-0 left-1/2 z-10 w-full max-w-md -translate-x-1/2 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
+           <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
             <div className="grid grid-cols-3 gap-2 text-xs">
               <button
                 onClick={() => setPage('home')}
