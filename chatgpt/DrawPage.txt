@@ -24,7 +24,7 @@ export default function DrawPage() {
   const drawnThisPlayer = useMemo(() => {
     if (!drawPlayer) return false
     return (game.drawnPlayerIds ?? []).includes(drawPlayer.id)
-  }, [drawPlayer])
+  }, [drawPlayer, game.drawnPlayerIds])
 
   const isHandFull =
     !!drawPlayer && (drawPlayer.hand?.length ?? 0) >= (drawPlayer.handSizeMax ?? 0)

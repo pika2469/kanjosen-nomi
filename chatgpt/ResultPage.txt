@@ -2,10 +2,12 @@ import { Button } from '@/components/ui/button'
 import { useGameStore } from '@/store/gameStore'
 import { findStation } from '@/stations'
 import { getMoodInfo } from '@/constants/mood'
+import { getCardById } from '@/cards'
+import { calcTurnXpFromDrinks } from '@/xpLogic'
 
 export function ResultPage() {
     const { game, players, setPage, runProgressPhase, nextTurn } = useGameStore()
-    const stationInfo = findStation(game.currentStation)
+    const stationInfo = game.currentStation ? findStation(game.currentStation) : null
     const event = game.currentEvent
     const moodInfo = getMoodInfo(game.mood)
 
@@ -13,12 +15,32 @@ export function ResultPage() {
     const getPlayerName = (playerId: string) =>
         players.find((p) => p.id === playerId)?.name ?? '不明なプレイヤー'
 
+    // このターンにプレイヤーが獲得したXPを計算
+    const getXpGainForPlayer = (playerId: string) => {
+        if (!game.currentDrinks || game.currentDrinks.length === 0) return 0
+        return game.currentDrinks
+            .filter((d) => d.playerId === playerId)
+            .reduce((sum, d) => sum + calcTurnXpFromDrinks(d.final), 0)
+    }
+
+    // カードログ（最後に使用されたカード）
+    const lastUsed = game.lastUsedCard
+    const lastCard = lastUsed ? getCardById(lastUsed.cardId) : null
+    const lastUser = lastUsed
+        ? players.find((p) => p.id === lastUsed.playerId)
+        : null
+    
+    const handleNextTurn = () => {
+        nextTurn()
+        setPage('mood')
+    }
+
     return (
         <div className="space-y-4">
             <section>
                 <h2 className="text-xl font-bold mb-1">リザルト</h2>
                 <p className="text-sm text-gray-600">
-                    "各プレイヤーの飲酒量", "Exp", "イベントログ"などを設置予定
+                    このターンの杯数・XP・イベント・カード使用状況のサマリ
                 </p>
             </section>
 
@@ -49,12 +71,35 @@ export function ResultPage() {
                         <div className="text-xs text-gray-600">{event.description}</div>
                     </div>
                 )}
-                <div>※現時点ではダミーデータのみ表示</div>
+            </section>
+
+            {/* 今ターンのカードログ */}
+            <section className="rounded-xl border bg-white p-3 shadow-sm space-y-2 text-sm">
+                <div className="text-xs text-gray-500 mb-1">カードログ</div>
+                {lastUsed ? (
+                    <div className="space-y-1">
+                        <div>
+                            <span className="font-medium mr-2">
+                                {lastUser?.name ?? '不明なプレイヤー'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                                が「{lastCard?.name ?? lastUsed.cardId}」を使用
+                            </span>
+                        </div>
+                        <div className="text-[11px] text-gray-400">
+                            使用ターン: {lastUsed.usedAtTurn} / カードID: {lastUsed.cardId}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-xs texe-gray-500">
+                        このターンに使用されたカードはありません。
+                    </div>
+                )}
             </section>
 
             {/* 各プレイヤーの杯数結果 */}
             <section className="rounded-xl border bg-white p-3 shadow-sm space-y-2 text-sm">
-                <div className="text-xs text-gray-500 mb-1">今回の杯数</div>
+                <div className="text-xs text-gray-500 mb-1">今回の杯数とXP</div>
 
                 {game.currentDrinks.length === 0 ? (
                     <div className="text-xs text-gray-500">
@@ -75,30 +120,47 @@ export function ResultPage() {
                                         {r.passiveMod}
                                     </span>
                                 </div>
-                                <div className="text-lg font-semibold">{r.final}杯</div>
+                                <div className="text-right">
+                                    <div className="text-lg font-semibold">
+                                        {r.final}杯
+                                    </div>
+                                    <div className="text-[11px] text-emerald-600">
+                                        +{calcTurnXpFromDrinks(r.final)} XP
+                                    </div>
+                                </div>
+                                
                             </li>
                         ))}
                     </ul>
                 )}
             </section>
 
-            {/* 各プレイヤーのLv / XP / SP一覧 */}
+            {/* 各プレイヤーのLv / XP / SP + このターンのXP増分 */}
             <section className="rounded-xl border bg-white p-3 shadow-sm space-y-2 text-sm">
                 <div className="text-xs text-gray-500 mb-1">プレイヤー成長状況</div>
                 {players.length === 0 ? (
                     <div className="text-xs text-gray-500">プレイヤーが登録されていません</div>
                 ) : (
                     <ul className="space-y-1">
-                        {players.map((p) => (
-                            <li key={p.id} className="items-center justify-between">
-                                <div>
-                                    <span className="font-medium mr-2">{p.name}</span>
-                                    <span className="text-xs text-gray-500">
-                                        Lv {p.level} / XP {p.xp} / SP {p.sp}
-                                    </span>
-                                </div>
-                            </li>
-                        ))}
+                        {players.map((p) => {
+                            const gain = getXpGainForPlayer(p.id)
+                            return (
+                                <li key={p.id} className="items-center justify-between">
+                                    <div>
+                                        <span className="font-medium mr-2">{p.name}</span>
+                                        <span className="text-xs text-gray-500">
+                                            Lv {p.level} / XP {p.xp} / SP {p.sp}
+                                        </span>
+                                    </div>
+                                    {gain > 0 && (
+                                        <div className="text-[11px] text-emerald-600">
+                                            このターン +{gain} XP
+                                        </div>
+                                    )}
+                                </li>
+                            )
+                            
+})}
                     </ul>
                 )}
 
@@ -120,10 +182,7 @@ export function ResultPage() {
                 <button 
                     type="button"
                     className="rounded bg-indigo-600 px-3 py-1 text-xs text-white hover:bg-indigo-700"
-                    onClick={() => {
-                        nextTurn()
-                        setPage('mood')
-                    }}>
+                    onClick={handleNextTurn}>
                     次のターンへ
                 </button>
             </section>

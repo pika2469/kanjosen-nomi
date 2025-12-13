@@ -120,7 +120,7 @@ export function CardHandPage() {
             )}
 
             <section className="flex flex-wrap gap-2 text-xs text-gray-500">
-                <Button size="sm" onClick={() => setPage('turn')}>
+                <Button size="sm" onClick={() => setPage('mood')}>
                     ターン画面へ戻る
                 </Button>
             </section>

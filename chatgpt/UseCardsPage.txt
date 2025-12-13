@@ -68,35 +68,44 @@ export default function UseCardsPage() {
 
   const phasePlayer =
     game.phasePlayerIndex != null ? players[game.phasePlayerIndex] : null
-
   const activePlayer = players[game.activePlayerIndex] ?? null
 
   const isBlocked =
     !!phasePlayer && game.cardUsageBlockedForPlayerId === phasePlayer.id
 
-  // ▼ 追加：選択中カード
-  const [selectedCardId, setSelectedCardId] = useState<CardId | ''>('')
+  const hand = phasePlayer?.hand ?? []
+
+  // playerId の最終杯数(final)を引く（未ロールなら null）
+  const getFinalDrink = (playerId: string): number | null => {
+    const r = game.currentDrinks.find((d) => d.playerId === playerId)
+    return r ? r.final : null
+  }
+
+
+  // ▼ 修正：選択状態は cardId ではなく「手札インデックス」で管理（同カード重複対応）
+  const [selectedHandIndex, setSelectedHandIndex] = useState<number>(-1)
 
   // ▼ 既存：狙い撃ちターゲット
   const [shootTargetId, setShootTargetId] = useState<string>('')
 
-  const hand = phasePlayer?.hand ?? []
-
-  // 初期表示：先頭のカード
+  // 初期表示：先頭（phasePlayer変更や手札枚数変更に追従）
   useEffect(() => {
-    if (!phasePlayer) {
-      setSelectedCardId('')
+    if (!phasePlayer || hand.length === 0) {
+      setSelectedHandIndex(-1)
       return
     }
-    if (hand.length === 0) {
-      setSelectedCardId('')
-      return
-    }
-    // 選択中が無い / すでに手札から消えた → 先頭に
-    if (!selectedCardId || !hand.includes(selectedCardId as CardId)) {
-      setSelectedCardId(hand[0])
-    }
-  }, [phasePlayer?.id, hand.join('|')]) // handの変化検知用（簡易）
+    setSelectedHandIndex((prev) => {
+      if (prev < 0 || prev >= hand.length) return 0
+      return prev
+    })
+  }, [phasePlayer?.id, hand.length])
+
+  // 選択中のカードID（インデックスから算出）
+  const selectedCardId: CardId | '' = useMemo(() => {
+    if (selectedHandIndex < 0) return ''
+    const cid = hand[selectedHandIndex]
+    return (cid ?? '') as CardId | ''
+  }, [hand, selectedHandIndex])
 
   // 選択カードが atk_shoot の時だけターゲット候補を出す
   const shootTargets = useMemo(() => {
@@ -104,7 +113,7 @@ export default function UseCardsPage() {
     return players.filter((p) => p.id !== phasePlayer.id)
   }, [players, phasePlayer])
 
-  // 選択カードが変わったら、狙い撃ちターゲットもリセット（任意）
+  // 選択カードが変わったら、狙い撃ちターゲットもリセット
   useEffect(() => {
     if (selectedCardId !== 'atk_shoot') setShootTargetId('')
   }, [selectedCardId])
@@ -138,7 +147,7 @@ export default function UseCardsPage() {
   const selectedImg = selectedCardId ? getCardImage(selectedCardId) : null
   const selectedTheme = selectedCardId ? getCardTheme(selectedCardId) : null
 
-  const kindLabel = (() => {
+  const kindLabel = useMemo(() => {
     if (!selectedCardId) return ''
     const kind = getCardKind(selectedCardId)
     return kind === 'atk'
@@ -150,11 +159,11 @@ export default function UseCardsPage() {
           : kind === 'trick'
             ? 'トリック'
             : 'その他'
-  })()
+  }, [selectedCardId])
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      {/* Header（既存のまま） */}
+    <div className="flex h-full flex-col gap-3">
+      {/* Header */}
       <header className="space-y-2">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1 text-left">
@@ -171,13 +180,14 @@ export default function UseCardsPage() {
           )}
         </div>
 
-        <p className="text-sm text-slate-600">
-          処理中プレイヤーの手札からカードを選んで使用します（このターン1回だけのカードもあります）。
+        {/* 縦圧縮：説明文を短く＆小さく */}
+        <p className="text-xs text-slate-600">
+          処理中プレイヤーの手札からカードを選んで使用します。
         </p>
       </header>
 
       {/* Main */}
-      <section className="rounded-2xl border bg-white/80 p-4 shadow-sm">
+      <section className="rounded-2xl border bg-white/80 p-3 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs text-slate-500">操作中プレイヤー</p>
@@ -193,44 +203,42 @@ export default function UseCardsPage() {
           )}
         </div>
 
-        {/* 手札UI：2ブロック構成 */}
-        <div className="mt-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-700">手札</p>
-
+        <div className="mt-3 space-y-3">
           {!phasePlayer ? (
-            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
               操作中プレイヤーが見つかりません。
             </div>
           ) : hand.length === 0 ? (
-            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
               手札がありません。
             </div>
           ) : (
             <>
               {/* 上段：カードアイコン行（横スクロール可） */}
-              <div className="rounded-2xl border bg-white p-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  {hand.map((cid) => {
-                    const img = getCardImage(cid)
-                    const isActive = cid === selectedCardId
+              <div className="rounded-2xl border bg-white p-2">
+                {/* ハイライト欠け対策：スクロール領域に余白（p-2）を付与 */}
+                <div className="flex items-center gap-2 overflow-x-auto p-2">
+                  {hand.map((cid, idx) => {
+                    const img = getCardImage(cid as CardId)
+                    const isActive = idx === selectedHandIndex
 
                     return (
                       <button
-                        key={cid}
+                        key={`${cid}-${idx}`} // ★重複回避
                         type="button"
-                        onClick={() => setSelectedCardId(cid)}
+                        onClick={() => setSelectedHandIndex(idx)} // ★indexで選択
                         className={[
                           'shrink-0 rounded-xl p-1 transition',
                           'outline-none focus:outline-none focus-visible:outline-none',
                           isActive
-                            ? 'ring-2 ring-sky-400 ring-offset-2'
+                            ? 'ring-2 ring-sky-400 -translate-y-0.5 shadow-sm' // 軽く浮かせる
                             : 'ring-1 ring-slate-200 hover:ring-slate-300',
                         ].join(' ')}
                         aria-label={`カード選択: ${cid}`}
                       >
                         <img
                           src={img}
-                          alt={cid}
+                          alt={String(cid)}
                           className="h-12 w-12 select-none object-contain"
                           draggable={false}
                         />
@@ -238,17 +246,17 @@ export default function UseCardsPage() {
                     )
                   })}
                 </div>
-                <p className="mt-2 text-[11px] text-slate-500">
-                  上のアイコンをタップしてカードを選択してください。
-                </p>
               </div>
 
               {/* 下段：詳細カード（1枚だけ表示） */}
               {selectedCardId && selectedTheme && selectedImg && (
                 <div
                   className={[
-                    'overflow-hidden rounded-2xl border bg-white shadow-sm',
+                    'overflow-hidden rounded-2xl border bg-white',
                     selectedTheme.frame,
+                    // ★中央カードを少し浮かせる演出
+                    '-translate-y-1 shadow-md',
+                    'transition-transform duration-150',
                   ].join(' ')}
                 >
                   {/* ポケカ風：上部にカード名 */}
@@ -272,13 +280,13 @@ export default function UseCardsPage() {
                     </span>
                   </div>
 
-                  {/* 画像 */}
-                  <div className="px-4 pt-4">
+                  {/* 画像（縦圧縮：h-48 → h-40） */}
+                  <div className="px-4 pt-3">
                     <div className="rounded-2xl bg-white p-3">
                       <img
                         src={selectedImg}
                         alt={selectedName}
-                        className="mx-auto block h-48 w-full object-contain select-none"
+                        className="mx-auto block h-40 w-full select-none object-contain"
                         draggable={false}
                       />
                     </div>
@@ -289,7 +297,7 @@ export default function UseCardsPage() {
                   </div>
 
                   {/* 説明文＋使用ボタン */}
-                  <div className="px-4 pb-4 pt-3">
+                  <div className="px-4 pb-4 pt-2">
                     {/* atk_shoot の時だけターゲット選択 */}
                     {selectedCardId === 'atk_shoot' && (
                       <div className="mb-3 rounded-xl bg-slate-50 p-3">
@@ -326,7 +334,9 @@ export default function UseCardsPage() {
                       onClick={handleUseSelected}
                       disabled={
                         isBlocked ||
-                        (selectedCardId === 'atk_shoot' && !!shootTargets.length && !shootTargetId)
+                        (selectedCardId === 'atk_shoot' &&
+                          !!shootTargets.length &&
+                          !shootTargetId)
                       }
                       className={[
                         'mt-4 w-full rounded-2xl px-4 py-3 text-base font-bold transition',
@@ -345,8 +355,109 @@ export default function UseCardsPage() {
         </div>
       </section>
 
-      {/* Debug（既存のままでもOK） */}
-      <section className="rounded-2xl border bg-white/70 p-4 text-sm shadow-sm">
+      {/* 現在の最終杯数（カード選択の参考用） */}
+      <section className="rounded-2xl border bg-white/80 p-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-slate-800 text-left">
+            現在の最終杯数
+          </p>
+          <p className="text-[11px] text-slate-500">
+            {game.currentDrinks.length > 0 ? 'Roll済' : '未Roll'}
+          </p>
+        </div>
+
+        {players.length === 0 ? (
+          <div className="mt-2 text-sm text-slate-600 text-left">
+            プレイヤーがいません。
+          </div>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {players.map((p) => {
+              const final = getFinalDrink(p.id)
+
+              // 操作中プレイヤー強調
+              const isPhase = p.id === phasePlayer?.id
+
+              // 杯数で色分け（0-2: emerald / 3-4: amber / 5+: rose）
+              const drinkPillClass =
+                final == null
+                  ? 'bg-slate-200 text-slate-600'
+                  : final <= 2
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : final <= 4
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-rose-100 text-rose-800'
+
+              // 行の背景/枠（操作中のみ強調）
+              const rowClass = isPhase
+                ? 'bg-sky-50/70 ring-1 ring-sky-200'
+                : 'bg-slate-50'
+
+              return (
+                <li
+                  key={p.id}
+                  className={[
+                    'flex items-center justify-between rounded-xl px-3 py-2',
+                    rowClass,
+                  ].join(' ')}
+                >
+                  {/* 左：名前/Li（左寄せ固定） */}
+                  <div className="min-w-0 text-left">
+                    <p className="truncate text-sm font-medium text-slate-900">
+                      {p.name}
+                      {isPhase && (
+                        <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                          操作中
+                        </span>
+                      )}
+                      {p.id === activePlayer?.id && (
+                        <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          代表
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      Li: {p.Li}
+                    </p>
+                  </div>
+
+                  {/* 右：杯数ピル */}
+                  <div className="shrink-0 text-right">
+                    {final == null ? (
+                      <span
+                        className={[
+                          'rounded-full px-3 py-1 text-[11px] font-semibold',
+                          drinkPillClass,
+                        ].join(' ')}
+                      >
+                        ---
+                      </span>
+                    ) : (
+                      <span
+                        className={[
+                          'rounded-full px-3 py-1 text-[12px] font-extrabold',
+                          drinkPillClass,
+                        ].join(' ')}
+                      >
+                        {final}杯
+                      </span>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {game.currentDrinks.length === 0 && (
+          <p className="mt-2 text-[11px] text-slate-500 text-left">
+            ※ まだ杯数が抽選されていません（Rollフェーズで抽選すると表示されます）。
+          </p>
+        )}
+      </section>
+
+      {/* Debug */}
+      <section className="rounded-2xl border bg-white/70 p-3 text-sm shadow-sm">
         <div className="text-center font-semibold text-slate-700">Debug</div>
         <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-700">
           <div>phase</div>
@@ -357,6 +468,12 @@ export default function UseCardsPage() {
 
           <div>phasePlayerIndex</div>
           <div className="text-right">{String(game.phasePlayerIndex)}</div>
+
+          <div>selectedHandIndex</div>
+          <div className="text-right">{String(selectedHandIndex)}</div>
+
+          <div>selectedCardId</div>
+          <div className="text-right">{selectedCardId || '---'}</div>
 
           <div>lastUsedCard</div>
           <div className="text-right">

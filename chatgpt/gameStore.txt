@@ -984,16 +984,19 @@ export const useGameStore = create<Store>((set, get) => ({
                 for (let i = 0; i < total; i++) {
                     // 手札が上限なら引かない
                     if (hand.length >= p.handSizeMax) break
-
+                    
                     const forceRareOnly = isBalance && isRep && !boostUsed
                     const newCardId = drawRandomCardId(p, {
                         mood: state.game.mood,
                         forceRareOnly,
                     })
 
+                    // カードを引く
+                    hand.push(newCardId)
+
+                    // R/SR強制を使った場合はフラグ更新
                     if (forceRareOnly) {
                         boostUsed = true
-                        hand.push(newCardId)
                     }
                 }
 
