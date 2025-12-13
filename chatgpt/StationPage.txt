@@ -46,7 +46,7 @@ export default function StationPage() {
       : '未決定'
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex min-h-full flex-col gap-4">
       {/* ヘッダー（MoodPage と揃える） */}
       <header className="space-y-2">
         <div className="flex items-center justify-between">

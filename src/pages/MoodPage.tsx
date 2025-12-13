@@ -10,7 +10,7 @@ export default function MoodPage() {
     const moodInfo = MOODS.find((m) => m.id === game.mood) ?? null
 
     return (
-        <div className="flex h-full flex-col space-y-4">
+        <div className="flex min-h-full flex-col space-y-4">
             {/* ヘッダー（MainLayoutの中身用） */}
             <header className="space-y-2">
                 <div className="flex items-center justify-between">

@@ -162,7 +162,7 @@ export default function UseCardsPage() {
   }, [selectedCardId])
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex min-h-full flex-col gap-3">
       {/* Header */}
       <header className="space-y-2">
         <div className="flex items-start justify-between gap-3">

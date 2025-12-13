@@ -148,7 +148,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       style={
         {
           // default / game でフッター高さが違うので分ける
-          '--footer-h': footerVariant === 'game' ? '50rem' : '6.25rem',
+          '--footer-h': footerVariant === 'game' ? '6.25rem' : '6.25rem',
         } as React.CSSProperties
       }
     >

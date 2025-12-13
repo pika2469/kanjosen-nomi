@@ -71,7 +71,7 @@ export default function StationEventPage() {
 
   return (
     // div className="mx-auto flex max-w-md flex-col gap-4 px-4 py-4"
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex min-h-full flex-col gap-4">
         {/* ヘッダー */}
         <header className="space-y-2">
             <div className="flex items-center justify-between">

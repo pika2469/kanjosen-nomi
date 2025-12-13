@@ -25,7 +25,7 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex min-h-full flex-col gap-4">
       {/* ヘッダー */}
       <header className="space-y-2">
         <div className="flex items-center justify-between">

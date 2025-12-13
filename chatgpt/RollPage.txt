@@ -37,7 +37,7 @@ export default function RollPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex min-h-full flex-col gap-4">
       {/* ヘッダー（StationEventPageと同じ） */}
       <header className="space-y-2">
         <div className="flex items-center justify-between">
