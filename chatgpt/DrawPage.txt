@@ -6,7 +6,7 @@ import { getCardById } from '@/cards'
 import cardDrawImg from '@/assets/card_draw_dummy.png'
 
 export default function DrawPage() {
-  const { game, players, drawCard } = useGameStore()
+  const { game, players, drawForDrawPhase } = useGameStore()
 
   const activePlayer = players[game.activePlayerIndex] ?? null
 
@@ -23,11 +23,7 @@ export default function DrawPage() {
 
   const drawnThisPlayer = useMemo(() => {
     if (!drawPlayer) return false
-    // 「このページに入った時点より前」の差分が取れないので、暫定判定：
-    // - hand が 0 なら未ドロー寄り
-    // - hand が 1 以上なら既にドロー済み寄り
-    // ※ 上限の都合でドローできないケースもあるので、表示文言で補助
-    return (drawPlayer.hand?.length ?? 0) > 0
+    return (game.drawnPlayerIds ?? []).includes(drawPlayer.id)
   }, [drawPlayer])
 
   const isHandFull =
@@ -43,8 +39,8 @@ export default function DrawPage() {
     if (game.phase !== 'draw') return
     if (!drawPlayer) return
     if (isHandFull) return
-    if (drawnThisPlayer) return // 暫定で二度押しを防ぐ
-    drawCard(drawPlayer.id)
+    if (drawnThisPlayer) return
+    drawForDrawPhase(drawPlayer.id)
   }
 
   return (
@@ -146,9 +142,9 @@ export default function DrawPage() {
                 <p className="mt-1 text-sm font-bold text-slate-900">
                   {latestCard?.name ?? '（不明）'}
                 </p>
-                {latestCard?.desc && (
+                {latestCard?.description && (
                   <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-                    {latestCard.desc}
+                    {latestCard.description}
                   </p>
                 )}
               </div>

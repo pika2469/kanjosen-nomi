@@ -118,6 +118,7 @@ type Store = {
     // カード系アクション
     drawCard: (playerId: string) => void
     drawToAll: () => void
+    drawForDrawPhase: (playerId: string) => void
     clearHands: () => void
     useCard: (playerId: string, cardId: CardId, targetPlayerid?: string) => void
 
@@ -458,28 +459,32 @@ export const useGameStore = create<Store>((set, get) => ({
             // 現在の操作プレイヤーがカードを引く
             const stateBefore = get()
             const player = stateBefore.players[idx]
+            // if (player) {
+            //     const extra = player.nextTurnExtraDraw ?? 0 // nextTurnExtraDrawはnumber型
+
+            //     // ベースの1ドロー
+            //     stateBefore.drawCard(player.id)
+
+            //     // 追加ドロー
+            //     if (extra > 0) {
+            //         for (let i = 0; i < extra; i++) {
+            //             stateBefore.drawCard(player.id)
+            //         }
+
+            //         // 追加ドローが終わったらnextTurnExtraDrawを0に戻す
+            //         set((state) => ({
+            //             ...state,
+            //             players: state.players.map((p, pIdx) =>
+            //                 pIdx === idx
+            //                 ? { ...p, nextTurnExtraDraw: 0 }
+            //                 : p,
+            //             ),
+            //         }))
+            //     }
+            // }
+
             if (player) {
-                const extra = player.nextTurnExtraDraw ?? 0 // nextTurnExtraDrawはnumber型
-
-                // ベースの1ドロー
-                stateBefore.drawCard(player.id)
-
-                // 追加ドロー
-                if (extra > 0) {
-                    for (let i = 0; i < extra; i++) {
-                        stateBefore.drawCard(player.id)
-                    }
-
-                    // 追加ドローが終わったらnextTurnExtraDrawを0に戻す
-                    set((state) => ({
-                        ...state,
-                        players: state.players.map((p, pIdx) =>
-                            pIdx === idx
-                            ? { ...p, nextTurnExtraDraw: 0 }
-                            : p,
-                        ),
-                    }))
-                }
+                get().drawForDrawPhase(player.id)
             }
 
             // 次の処理分岐
@@ -886,7 +891,9 @@ export const useGameStore = create<Store>((set, get) => ({
             // drawフェーズのときだけ、「このターンのドロー済み」を立てる
             let drawnPlayerIds = state.game.drawnPlayerIds ?? []
             if (state.game.phase === 'draw') {
-                drawnPlayerIds = [...drawnPlayerIds, playerId]
+                if (!drawnPlayerIds.includes(playerId)) {
+                    drawnPlayerIds = [...drawnPlayerIds, playerId]
+                }
             }
 
             return { 
@@ -948,6 +955,69 @@ export const useGameStore = create<Store>((set, get) => ({
             }))
 
             return { ...state, players }
+        })
+    },
+
+    // 追加ドロー(nextTurnExtraDraw)も考慮したドロー関数
+    drawForDrawPhase: (playerId: string) => {
+        set((state) => {
+            // drawフェーズ以外で呼ばれても安全側に倒す
+            if (state.game.phase !== 'draw') return state
+
+            const isBalance = state.game.mood === 'balance'
+            let boostUsed = state.game.boostRareUsedForTurn ?? false
+
+            const target = state.players.find((p) => p.id === playerId)
+            if (!target) return state
+
+            const extra = target.nextTurnExtraDraw ?? 0
+            const total = 1 + Math.max(0, extra)
+
+            const players = state.players.map((p, idx) => {
+                if (p.id !== playerId) return p
+
+                let hand = [...p.hand]
+
+                // 代表プレイヤーかどうか（balanceの R/SR 強制判定用）
+                const isRep = idx === state.game.activePlayerIndex
+
+                for (let i = 0; i < total; i++) {
+                    // 手札が上限なら引かない
+                    if (hand.length >= p.handSizeMax) break
+
+                    const forceRareOnly = isBalance && isRep && !boostUsed
+                    const newCardId = drawRandomCardId(p, {
+                        mood: state.game.mood,
+                        forceRareOnly,
+                    })
+
+                    if (forceRareOnly) {
+                        boostUsed = true
+                        hand.push(newCardId)
+                    }
+                }
+
+                return {
+                    ...p,
+                    hand,
+                    nextTurnExtraDraw: 0,
+                }
+            })
+
+            // drawnPlayerIdsはSet相当（重複させない）
+            const drawnPlayerIds = state.game.drawnPlayerIds ?? []
+            const nextDrawn =
+                drawnPlayerIds.includes(playerId) ? drawnPlayerIds : [...drawnPlayerIds, playerId]
+
+                return {
+                    ...state,
+                    players,
+                    game: {
+                        ...state.game,
+                        boostRareUsedForTurn: boostUsed,
+                        drawnPlayerIds: nextDrawn,
+                    },
+                }
         })
     },
 
