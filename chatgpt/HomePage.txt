@@ -39,7 +39,7 @@ export function HomePage() {
   return (
     <div ref={wrapRef} className="relative h-full w-full bg-transparent overflow-hidden">
       {/* 背景パターン（Homeのみ） */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 z-0">
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {/* 回転用 */}
             <img
@@ -47,8 +47,7 @@ export function HomePage() {
                 alt=""
                 draggable={false}
                 className="
-                    w-[120vmax] h-[110vmax]
-                    max-w-[1400px] max-h-[1400px]
+                    w-[900px] h-[900px]
                     opacity-[0.28]
                     animate-homeBgSpin
                     select-none
@@ -148,7 +147,7 @@ export function HomePage() {
               onClick={() => setPage('minigame')}
               className="
                 group w-full rounded-2xl
-                border border-white/60 bg-white/55 py-6 text-base font-semibold text-slate-900
+                border border-white/70 bg-transparent py-6 text-base font-semibold text-slate-900
                 shadow-none ring-1 ring-black/5
                 transition-all duration-200
                 hover:-translate-y-1 hover:bg-white/20 hover:shadow-[0_18px_40px_rgba(2,6,23,0.16)]

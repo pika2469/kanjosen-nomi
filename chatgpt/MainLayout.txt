@@ -28,39 +28,52 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   const isActive = (page: string) => ui.currentPage === page
 
-  // ★ ここをゲームロジック込みの「進む」に差し替え
+  const page = ui.currentPage
+
+  // ゲームフェーズ進行ページ（StationPageなど）
+  const isGamePage = [
+    'mood',
+    'station',
+    'stationEvent',
+    'roll',
+    'draw',
+    'useCards',
+    'progress',
+    'result',
+  ].includes(page)
+
+  const isSettingsPage = page === 'settings'
+  const isHomePage = page === 'home'
+  const showFooter = !isHomePage
+
+  // ★ ここをゲームロジック込みの「進む」に差し替え（現行踏襲）
   const handleGameNext = () => {
     const current = ui.currentPage
 
     switch (current) {
       case 'mood': {
-        // ムード未決定なら1回回してからフェーズ進行
         if (!game.mood) {
           spinMood()
         }
-        proceedPhase()          // phase: mood -> station
+        proceedPhase() // phase: mood -> station
         setPage('station')
         break
       }
 
       case 'station': {
-        // まだ駅が決まっていなければここで決定
         if (game.lastStationSteps == null || game.lastStationDirection == null) {
           const steps = Math.floor(Math.random() * 6) + 1
-          const direction: Direction =
-            Math.random() < 0.5 ? 'cw' : 'ccw'
+          const direction: Direction = Math.random() < 0.5 ? 'cw' : 'ccw'
           runStationPhase(steps, direction)
         }
 
-        // 駅イベントページへ
         setPhase('stationEvent')
         setPage('stationEvent')
         break
       }
 
       case 'stationEvent': {
-        // 駅イベント → 杯数ロールへ
-        proceedPhase()          // phase: stationEvent -> roll
+        proceedPhase() // phase: stationEvent -> roll
         setPage('roll')
         break
       }
@@ -70,15 +83,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         const p = players[idx]
         if (!p) break
 
-        // このプレイヤーが既に抽選済か？
         const rolled = game.currentDrinks.some((d) => d.playerId === p.id)
-
-        // 未抽選ならここで抽選
         if (!rolled) {
           runRollPhaseForPlayer(idx)
         }
 
-        // roll → drawへ
         setPhase('draw')
         setPhasePlayerIndex(idx)
         setPage('draw')
@@ -92,12 +101,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
         const alreadyDrawn = (game.drawnPlayerIds ?? []).includes(p.id)
 
-        // 未ドローならドローしてから次へ
         if (!alreadyDrawn) {
           drawCard(p.id)
         }
 
-        // 次プレイヤーがいれば roll へ、いなければ useCards へ
         if (idx + 1 < players.length) {
           setPhase('roll')
           setPhasePlayerIndex(idx + 1)
@@ -112,27 +119,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
 
       case 'useCards': {
-        // カード使用フェーズもプレイヤー順に回す
         const idx = game.phasePlayerIndex ?? 0
         const count = players.length
         const isLastPlayer = idx + 1 >= count
 
-        proceedPhase()          // phase: useCards -> useCards(次の人) or progress
-
+        proceedPhase() // phase: useCards -> useCards(次の人) or progress
         setPage(isLastPlayer ? 'progress' : 'useCards')
         break
       }
 
       case 'progress': {
-        // 成長判定 → 結果表示へ
-        proceedPhase()          // phase: progress -> result（内部で runProgressPhase）
+        proceedPhase() // phase: progress -> result（内部で runProgressPhase）
         setPage('result')
         break
       }
 
       case 'result': {
-        // 結果表示 → 次のターンのムードへ
-        proceedPhase()          // phase: result -> mood（内部で nextTurn）
+        proceedPhase() // phase: result -> mood（内部で nextTurn）
         setPage('mood')
         break
       }
@@ -143,20 +146,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }
 
   return (
-    <div 
+    <div
       className="h-screen w-full"
       style={
         {
-          // default / game でフッター高さが違うので分ける
-          '--footer-h': footerVariant === 'game' ? '6.25rem' : '6.25rem',
+          // フッター高さ（固定）
+          '--footer-h': '6.25rem',
         } as React.CSSProperties
       }
     >
-      {/* 内側は max-w-width の枠だが背景色は付けない */}
       <div className="mx-auto flex h-full w-full max-w-md flex-col min-h-0">
-
         {/* 上部ヘッダー */}
-        <header className="px-4 pt-6 pb-3">
+        <header className={['px-4 pt-6 pb-3',
+                  isHomePage ? 'absolute left-0 right-0 top-0 z-20': ''
+        ].join(' ')}>
           <div className="text-lg font-semibold text-slate-800">
             環状線飲みアプリ
           </div>
@@ -164,15 +167,43 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </header>
 
         {/* メインコンテンツ */}
-        <main className="flex-1 overflow-y-auto px-4 pb-[calc(var(--footer-h)+env(safe-area-inset-bottom))]">
-          {children}
-        </main>
+        <main
+          className={[
+            'flex-1 min-h-0 px-4',
+            isHomePage
+              ? 'overflow-hidden overscroll-none flex items-center justify-center'
+              : 'overflow-y-auto',
+            showFooter ? 'pb-[calc(var(--footer-h)+env(safe-area-inset-bottom))]' : 'pb-0',
+            ].join(' ')}
+          >
+            {children}
+          </main>
 
-        {/* 下部ナビゲーション */}
-        {footerVariant === 'default' ? (
-          // 通常版：6ボタン nav（Home / Debug / Settings / Roulette / Cards / Result）
-           <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
-            <div className="grid grid-cols-3 gap-2 text-xs">
+
+        {/* ゲーム進行用FAB（フッター外） */}
+        {isGamePage && (
+          <button
+            type="button"
+            onClick={handleGameNext}
+            className="
+              fixed right-4 z-20
+              bottom-[calc(var(--footer-h)+16px)]
+              rounded-full bg-green-600 px-5 py-3 text-sm font-semibold text-white
+              shadow-lg transition
+              hover:bg-green-700 active:scale-95
+            "
+          >
+            次へ
+          </button>
+        )}
+
+        {/* 下部フッター */}
+        {showFooter && (
+          <>
+            {isSettingsPage ? (
+          // Settings：Homeのみ
+          <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
+            <div className="grid grid-cols-1 gap-2 text-xs">
               <button
                 type="button"
                 onClick={() => setPage('home')}
@@ -185,94 +216,139 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               >
                 Home
               </button>
+            </div>
+          </nav>
+        ) : isGamePage ? (
+          // ゲーム進行ページ：Home + Settings のみ
+          <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
+            <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
-                onClick={() => setPage('debug')}
-                className={
-                  'w-full rounded-xl px-3 py-2 font-medium ' +
-                  (isActive('debug')
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
-                }
+                onClick={() => setPage('home')}
+                className="w-full rounded-xl bg-slate-100 px-3 py-2 font-medium text-slate-800 hover:bg-slate-200"
               >
-                Debug
+                Home
               </button>
               <button
                 type="button"
                 onClick={() => setPage('settings')}
-                className={
-                  'w-full rounded-xl px-3 py-2 font-medium ' +
-                  (isActive('settings')
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
-                }
+                className="w-full rounded-xl bg-slate-100 px-3 py-2 font-medium text-slate-800 hover:bg-slate-200"
               >
                 Settings
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPage('mood')}
-                className={
-                  'w-full rounded-xl px-3 py-2 font-medium ' +
-                  (isActive('mood')
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
-                }
-              >
-                Roulette
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage('cardHand')}
-                className={
-                  'w-full rounded-xl px-3 py-2 font-medium ' +
-                  (isActive('cardHand')
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
-                }
-              >
-                Cards
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage('result')}
-                className={
-                  'w-full rounded-xl px-3 py-2 font-medium ' +
-                  (isActive('result')
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
-                }
-              >
-                Result
               </button>
             </div>
           </nav>
         ) : (
-          // ゲーム版：3ボタン nav（Homeへ / Debug / 進む）
-           <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <button
-                onClick={() => setPage('home')}
-                className="w-full rounded-full bg-slate-200 px-4 py-2 font-medium text-slate-800 hover:bg-slate-300"
-              >
-                Homeへ
-              </button>
-              <button
-                onClick={() => setPage('debug')}
-                className="w-full rounded-full bg-slate-200 px-4 py-2 font-medium text-slate-800 hover:bg-slate-300"
-              >
-                Debug
-              </button>
-              <button
-                onClick={handleGameNext}
-                className="w-full rounded-full bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
-              >
-                進む
-              </button>
-            </div>
-          </nav>
+          // それ以外のページ：現時点では従来どおり（未検討のため触れない）
+          // ※ご要望により miniGameHub 等の構造は現段階で詰めない
+          footerVariant === 'default' ? (
+            <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPage('home')}
+                  className={
+                    'w-full rounded-xl px-3 py-2 font-medium ' +
+                    (isActive('home')
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
+                  }
+                >
+                  Home
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage('debug')}
+                  className={
+                    'w-full rounded-xl px-3 py-2 font-medium ' +
+                    (isActive('debug')
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
+                  }
+                >
+                  Debug
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage('settings')}
+                  className={
+                    'w-full rounded-xl px-3 py-2 font-medium ' +
+                    (isActive('settings')
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
+                  }
+                >
+                  Settings
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPage('mood')}
+                  className={
+                    'w-full rounded-xl px-3 py-2 font-medium ' +
+                    (isActive('mood')
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
+                  }
+                >
+                  Roulette
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage('cardHand')}
+                  className={
+                    'w-full rounded-xl px-3 py-2 font-medium ' +
+                    (isActive('cardHand')
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
+                  }
+                >
+                  Cards
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage('result')}
+                  className={
+                    'w-full rounded-xl px-3 py-2 font-medium ' +
+                    (isActive('result')
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200')
+                  }
+                >
+                  Result
+                </button>
+              </div>
+            </nav>
+          ) : (
+            <nav className="fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2 bg-white/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.12)]">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <button
+                  onClick={() => setPage('home')}
+                  className="w-full rounded-full bg-slate-200 px-4 py-2 font-medium text-slate-800 hover:bg-slate-300"
+                >
+                  Homeへ
+                </button>
+                <button
+                  onClick={() => setPage('debug')}
+                  className="w-full rounded-full bg-slate-200 px-4 py-2 font-medium text-slate-800 hover:bg-slate-300"
+                >
+                  Debug
+                </button>
+                <button
+                  onClick={handleGameNext}
+                  className="w-full rounded-full bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
+                >
+                  進む
+                </button>
+              </div>
+            </nav>
+          )
         )}
+          
+          
+          </>
+        )}
+        
       </div>
     </div>
   )

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 900 900">
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563EB" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#7C3AED" stop-opacity="0.55"/>
+    </linearGradient>
+
+    <!-- ring radius R=285, center (450,450) -->
+    <circle id="stationDot" cx="450" cy="165" r="6.5" fill="#1D4ED8" opacity="0.70"/>
+  </defs>
+
+  <rect width="900" height="900" fill="none"/>
+
+  <!-- outer ring -->
+  <circle cx="450" cy="450" r="285" fill="none" stroke="url(#ring)" stroke-width="12" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- stations: 24 dots, exactly on the ring -->
+  <g>
+    <use href="#stationDot" transform="rotate(0 450 450)"/>
+    <use href="#stationDot" transform="rotate(15 450 450)"/>
+    <use href="#stationDot" transform="rotate(30 450 450)"/>
+    <use href="#stationDot" transform="rotate(45 450 450)"/>
+    <use href="#stationDot" transform="rotate(60 450 450)"/>
+    <use href="#stationDot" transform="rotate(75 450 450)"/>
+    <use href="#stationDot" transform="rotate(90 450 450)"/>
+    <use href="#stationDot" transform="rotate(105 450 450)"/>
+    <use href="#stationDot" transform="rotate(120 450 450)"/>
+    <use href="#stationDot" transform="rotate(135 450 450)"/>
+    <use href="#stationDot" transform="rotate(150 450 450)"/>
+    <use href="#stationDot" transform="rotate(165 450 450)"/>
+    <use href="#stationDot" transform="rotate(180 450 450)"/>
+    <use href="#stationDot" transform="rotate(195 450 450)"/>
+    <use href="#stationDot" transform="rotate(210 450 450)"/>
+    <use href="#stationDot" transform="rotate(225 450 450)"/>
+    <use href="#stationDot" transform="rotate(240 450 450)"/>
+    <use href="#stationDot" transform="rotate(255 450 450)"/>
+    <use href="#stationDot" transform="rotate(270 450 450)"/>
+    <use href="#stationDot" transform="rotate(285 450 450)"/>
+    <use href="#stationDot" transform="rotate(300 450 450)"/>
+    <use href="#stationDot" transform="rotate(315 450 450)"/>
+    <use href="#stationDot" transform="rotate(330 450 450)"/>
+    <use href="#stationDot" transform="rotate(345 450 450)"/>
+  </g>
+</svg>
