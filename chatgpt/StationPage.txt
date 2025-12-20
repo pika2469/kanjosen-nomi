@@ -1,160 +1,94 @@
 // src/pages/StationPage.tsx
+import { useEffect } from 'react'
 import { useGameStore } from '@/store/gameStore'
-import { STATIONS } from '@/stations'
 import stationDiceImg from '@/assets/station_dice_dummy3.png'
-import type { Direction, StationId } from '@/types/game'
-
-function getStationName(id: StationId | null | undefined): string {
-  if (!id) return '未設定'
-  const s = STATIONS.find((st) => st.id === id)
-  return s ? s.name : String(id)
-}
 
 export default function StationPage() {
   const {
     game,
     players,
-    settings,
-    runStationPhase,
+    decideStationAndGoNext,
+    ensureStationEventPhase,
+    isStationDecided,
   } = useGameStore()
 
   const activePlayer = players[game.activePlayerIndex] ?? null
 
-  // サイコロクリックで駅決定
-  const handleRoll = () => {
-    // フェーズが station 以外、またはすでに決定済なら何もしない
-    if (game.phase !== 'station') return
-    if (game.lastStationSteps != null) return
+  // 駅決定済でStationPageが開かれたら、自動で次フェーズへ
+  useEffect(() => {
+    ensureStationEventPhase()
+  }, [ensureStationEventPhase])
 
-    const steps = Math.floor(Math.random() * 6) + 1 // 1〜6
-    const direction: Direction = Math.random() < 0.5 ? 'cw' : 'ccw'
+  const decided = isStationDecided()
 
-    runStationPhase(steps, direction)
+  const handleTapDice = () => {
+    // 未決定なら、決定して次フェーズへ進める
+    decideStationAndGoNext()
   }
 
-  const currentStationId =
-    game.currentStation ?? settings.startStationId ?? null
-  const currentStationName = getStationName(currentStationId)
-
-  const moved = game.lastStationSteps != null && game.lastStationDirection != null
-
-  const directionLabel =
-    game.lastStationDirection === 'cw'
-      ? '時計回り'
-      : game.lastStationDirection === 'ccw'
-      ? '反時計回り'
-      : '未決定'
+  const ICON_SIZE = 220
 
   return (
-    <div className="flex min-h-full flex-col gap-4">
-      {/* ヘッダー（MoodPage と揃える） */}
-      <header className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1 text-left">
-            <p className="text-[11px] font-semibold text-sky-500">
-              STEP 2 / Station
-            </p>
-            <h1 className="text-lg font-bold text-slate-900">
-              駅を決めよう
-            </h1>
-          </div>
-          {activePlayer && (
-            <div className="rounded-full bg-slate-800 px-3 py-1 text-[11px] text-white">
-              代表: {activePlayer.name}
+    <div className="flex min-h-full flex-col">
+      <div className="flex-1 px-4 pt-4 pb-6">
+        {/* Header（MoodPage方針：背景はMainLayout管轄／箱を作らない） */}
+        <header className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1 text-left">
+              <p className="text-[11px] font-semibold text-sky-500">
+                STEP 2 / Station
+              </p>
+              <h1 className="text-lg font-bold text-slate-900">駅を決めよう</h1>
             </div>
-          )}
-        </div>
-        <p className="text-xs text-slate-500 text-left">
-          このターンに向かう駅は、サイコロでランダムに決定されます。
-          サイコロをタップすると、1〜6駅のどこかへ移動します
-          （時計回り／反時計回りもランダム）。
-        </p>
-      </header>
 
-      {/* メインカード */}
-      <section className="flex flex-col items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm">
-        {/* サイコロ：クリックで駅決定（1ターン1回） */}
-        <button
-          type="button"
-          onClick={handleRoll}
-          disabled={moved}
-          className="
-            flex h-44 w-44 items-center justify-center
-            rounded-full bg-transparent outline-none
-            transition-transform duration-150
-            hover:scale-105 active:scale-95
-            disabled:cursor-default disabled:opacity-75
-          "
-          aria-label="駅を決めるサイコロ"
-        >
-          <img
-            src={stationDiceImg}
-            alt="駅決定サイコロ"
-            className="h-full w-full select-none rounded-full object-contain"
-            draggable={false}
-          />
-        </button>
+            {activePlayer && (
+              <div className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-white">
+                代表: {activePlayer.name}
+              </div>
+            )}
+          </div>
 
-        {/* 今回の移動について */}
-        <div className="w-full rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-700">
-          <p className="mb-1 font-semibold text-slate-800">
-            今回の移動について
+          {/* 説明文：折り返し＆左寄せ（全体方針） */}
+          <p className="text-left text-xs leading-relaxed text-slate-600">
+            サイコロをタップすると、次の駅（移動距離1〜6駅・方向）が決定され、次のフェーズへ進みます。
           </p>
+        </header>
 
-          {moved ? (
-            <div className="space-y-1">
-              <p>
-                次の駅は
-                <span className="font-semibold">「{currentStationName}」</span>
-                です。
-              </p>
-              <p>
-                このターンでは
-                <span className="font-semibold">
-                  {' '}{game.lastStationSteps}駅
-                </span>
-                分、<span className="font-semibold">{directionLabel}</span>
-                に移動しました。
+        {/* Main：主役を中央 */}
+        <main className="mt-6 flex flex-col items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={handleTapDice}
+            disabled={decided || game.phase !== 'station'}
+            className="
+              group relative flex items-center justify-center
+              rounded-[28px]
+              transition-transform duration-150
+              hover:scale-[1.02] active:scale-95
+              disabled:cursor-default disabled:opacity-80
+              outline-none focus-visible:outline-none
+            "
+            style={{ width: ICON_SIZE, height: ICON_SIZE }}
+            aria-label="駅を決めるサイコロ"
+          >
+            <div className="absolute inset-0 rounded-[28px] bg-white/35 blur-xl" />
+            <img
+              src={stationDiceImg}
+              alt="駅決定サイコロ"
+              className="relative z-10 h-full w-full select-none object-contain"
+              draggable={false}
+            />
+          </button>
+
+          {!decided && (
+            <div className="w-full max-w-[420px] px-1">
+              <p className="text-left text-xs leading-relaxed text-slate-600">
+                タップして駅を決定してください。
               </p>
             </div>
-          ) : (
-            <p className="text-[11px] text-slate-600">
-              まだこのターンの移動は決まっていません。
-              上のサイコロをタップすると、移動先の駅と移動距離・方向が決定されます。
-            </p>
           )}
-        </div>
-      </section>
-
-      {/* Debug 情報（縮め気味に） */}
-      <section className="rounded-2xl border bg-white px-4 py-3 text-[11px] text-slate-600 shadow-sm">
-        <div className="mb-1 flex items-center justify-between">
-          <span className="font-semibold text-slate-700">Debug</span>
-          <span className="text-[10px] text-slate-400">
-            フェーズ: {game.phase}
-          </span>
-        </div>
-        <dl className="space-y-1">
-          <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">現在の駅</dt>
-            <dd className="text-right font-medium text-slate-800">
-              {currentStationName}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">訪問済み駅数</dt>
-            <dd className="text-right text-slate-800">
-              {game.visitedStations.length}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">重複訪問</dt>
-            <dd className="text-right text-slate-800">
-              {settings.allowDuplicateStations ? '許可する' : '同じ駅は避ける'}
-            </dd>
-          </div>
-        </dl>
-      </section>
+        </main>
+      </div>
     </div>
   )
 }
