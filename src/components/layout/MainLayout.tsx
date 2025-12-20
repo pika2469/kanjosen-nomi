@@ -40,11 +40,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     'useCards',
     'progress',
     'result',
+    'passives',
   ].includes(page)
 
   const isSettingsPage = page === 'settings'
   const isHomePage = page === 'home'
   const showFooter = !isHomePage
+
+  // ★FAB(次へ)は「実際の進行フェーズ」のみに限定
+  const isPhaseProgressPage = [
+    'mood',
+    'station',
+    'stationEvent',
+    'roll',
+    'draw',
+    'useCards',
+    'progress',
+    'result',
+  ].includes(page)
 
   // ★ ここをゲームロジック込みの「進む」に差し替え（現行踏襲）
   const handleGameNext = () => {
@@ -181,7 +194,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
 
         {/* ゲーム進行用FAB（フッター外） */}
-        {isGamePage && (
+        {isPhaseProgressPage && (
           <button
             type="button"
             onClick={handleGameNext}

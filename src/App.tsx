@@ -24,7 +24,7 @@ import { MiniGameHubPage } from '@/pages/MiniGameHubPage'
 import { TurnPage } from '@/pages/TurnPage' // デバッグページ
 
 // 未使用ページ
-import { PassivesPages } from '@/pages/PassivesPage'
+import PassivesPages from '@/pages/PassivesPage'
 import { RoulettePage } from '@/pages/RoulettePage' // MoodPageに置き換え予定
 import { CardHandPage } from '@/pages/CardHandPage'
 

@@ -133,4 +133,23 @@ export const hasTrickChaos          = (p: Player) => hasPassive(p, 'trick_chaos'
 export const hasTrickRateUp         = (p: Player) => hasPassive(p, 'trick_rate_up')
 export const hasTrickDualRoll       = (p: Player) => hasPassive(p, 'trick_dual_roll')
 
+// -------------------------------------------------------
+// Passive Icons
+// -------------------------------------------------------
+// Vite想定：passives.ts から見て ./assets/passives 配下を読む
+const PASSIVE_ICON_MODULES = import.meta.glob('./assets/passives/*.png', {
+  eager: true,
+  import: 'default',
+}) as Record<string, string>
+
+/**
+ * passiveId に対応するアイコンを返す
+ * - 例: /src/assets/passives/atk_tease.png
+ * - なければ default.png
+ */
+export function getPassiveIconSrc(id: PassiveId): string {
+  const key = `./assets/passives/${id}.png`
+  const fallback = `./assets/passives/default.png`
+  return PASSIVE_ICON_MODULES[key] ?? PASSIVE_ICON_MODULES[fallback] ?? ''
+}
 
