@@ -2,72 +2,97 @@ import type { StationEvent, StationAttr, StationId } from '@/types/game'
 import { STATIONS } from '@/stations'
 
 // 属性別のイベント定義
-// type EventDef = {
-//     id: string
-//     title: string
-//     description: string
-// }
+export type StationEventId =
+  | 'downtown_rep_plus2_others_plus1'
+  | 'downtown_all_plus1'
+  | 'waterside_others_minus1'
+  | 'waterside_rep_minus1'
+  | 'shitamachi_all_plus1'
+  | 'shitamachi_rep_plus1'
+  | 'transfer_rep_draw_plus1'
+  | 'transfer_rep_skip_action'
 
-// 以下のイベントは仮の内容
-// const 繁華街Events: EventDef[] = [
-//     {
-//         id: 'crowded_bonus',
-//         title: '繁華街ボーナス',
-//         description: '人の多さでテンションup! このターンは全員ちょっと攻め気味になる予定',
-//     },
-//     {
-//         id: 'shop_hopping',
-//         title: 'はしご酒チャンス',
-//         description: '店が多すぎて選べない！思わず2軒目へ行っちゃうかも？',
-//     },
-// ]
+export type StationEventDef = {
+  id: StationEventId
+  title: string
+  summary: string
+  detail: string
+  illustrationId: string
+}
 
-// const 水辺Events: EventDef[] = [
-//     {
-//         id: 'relax_view',
-//         title: 'ちょっと一息',
-//         description: '水辺の街でクールダウン。このターンは少し落ち着いたムードになりそう。',
-//     },
-//     {
-//         id: 'river_walk',
-//         title: '川沿いぶらり',
-//         description: 'コンビニでお酒を買って散歩しながら飲んでみよう！',
-//     },
-// ]
+export const STATION_EVENTS: Record<StationEventId, StationEventDef> = {
+  downtown_rep_plus2_others_plus1: {
+    id: 'downtown_rep_plus2_others_plus1',
+    title: '繁華街：代表ドカ飲みタイム',
+    summary: '代表+2杯、その他の全員+1杯',
+    detail:
+      'にぎやかな繁華街に到着。テンションが一気に上がり、代表プレイヤーは特に飲まされる展開に。',
+    illustrationId: 'downtown',
+  },
 
-// const 下町Events: EventDef[] = [
-//     {
-//         id: 'local_talk',
-//         title: '常連さんトーク',
-//         description: '地元の人と盛り上がる！話題が増えて乾杯回数も増えそうな雰囲気',
-//     },
-//     {
-//         id: 'cheap_yet_good',
-//         title: '安くてうまい',
-//         description: 'コスパ最強の店を発見。おかわりするしかない！',
-//     },
-// ]
+  downtown_all_plus1: {
+    id: 'downtown_all_plus1',
+    title: '繁華街：みんなで乾杯！',
+    summary: '全員+1杯',
+    detail:
+      '人が多く活気のあるエリアに到着。全員が1杯追加で飲むことになります。',
+    illustrationId: 'downtown',
+  },
 
-// const 乗換Events: EventDef[] = [
-//     {
-//         id: 'route_confusion',
-//         title: 'ルート会議',
-//         description: '次にどこに行こうか？作戦タイムでついついお酒が進む',
-//     },
-//     {
-//         id: 'people_flow',
-//         title: '人の流れに乗る',
-//         description: '乗換客の流れに乗って、駅の近くの居酒屋へ勢いで吸い込まれそう',
-//     },
-// ]
+  waterside_others_minus1: {
+    id: 'waterside_others_minus1',
+    title: '水辺：まったりタイム',
+    summary: '代表以外の全員-1杯',
+    detail:
+      '落ち着いた水辺の空気でペースダウン。代表プレイヤー以外は1杯セーブ。',
+    illustrationId: 'waterside',
+  },
 
-// 属性ごとにイベント配列にまとめる
-// const EVENTS_BY_ATTR: Record<StationAttr, EventDef[]> = {
-//     繁華街: 繁華街Events,
-//     水辺: 水辺Events,
-//     下町: 下町Events,
-//     乗換: 乗換Events,
-// }
+  waterside_rep_minus1: {
+    id: 'waterside_rep_minus1',
+    title: '水辺：代表クールダウン',
+    summary: '代表のみ-1杯',
+    detail:
+      '涼しい風に当たり、少し休憩。代表プレイヤーのみ飲む量が1杯減ります。',
+    illustrationId: 'waterside',
+  },
+
+  shitamachi_all_plus1: {
+    id: 'shitamachi_all_plus1',
+    title: '下町：ほろ酔い商店街',
+    summary: '全員+1杯',
+    detail:
+      '人情味あふれる商店街で一杯。全員が追加で1杯追加で飲みます。',
+    illustrationId: 'shitamachi',
+  },
+
+  shitamachi_rep_plus1: {
+    id: 'shitamachi_rep_plus1',
+    title: '下町：代表サービス',
+    summary: '代表のみ+1杯',
+    detail:
+      '店主からのサービスで、代表プレイヤーだけ1杯追加されます。',
+    illustrationId: 'shitamachi',
+  },
+
+  transfer_rep_draw_plus1: {
+    id: 'transfer_rep_draw_plus1',
+    title: '乗換：代表ボーナスドロー',
+    summary: '代表がカード+1枚ドロー',
+    detail:
+      '乗換駅で時間調整。代表プレイヤーはカードを1枚多く引きます。',
+    illustrationId: 'transfer',
+  },
+
+  transfer_rep_skip_action: {
+    id: 'transfer_rep_skip_action',
+    title: '乗換：代表アクション停止',
+    summary: '代表はこのターンカード使用不可',
+    detail:
+      'バタバタして余裕がない代表。このターンはカードが使えません。',
+    illustrationId: 'transfer',
+  },
+}
 
 // 駅IDから属性を取得
 function getStationAttr(stationId: StationId) : StationAttr | null {
