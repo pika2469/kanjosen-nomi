@@ -769,8 +769,8 @@ export const useGameStore = create<Store>((set, get) => ({
 
     // stationページ：すでに決定済ならstationEventフェーズへ進める
     ensureStationEventPhase: () => {
-        const { game } = get()
-        if (game.phase !== 'station') return
+        const { ui } = get()
+        if (ui.currentPage !== 'station') return
         if (!get().isStationDecided()) return
 
         set((state) => ({
@@ -781,8 +781,9 @@ export const useGameStore = create<Store>((set, get) => ({
             },
             game: {
                 ...state.game,
-                phase: 'stationEvent',
-                phasePlayerIndex: null,
+                phase: state.game.phase === 'station' ? 'stationEvent' : state.game.phase,
+                phasePlayerIndex: 
+                    state.game.phase === 'station' ? null : state.game.phasePlayerIndex,
             },
         }))
     },

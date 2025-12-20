@@ -83,17 +83,23 @@ export default function StationEventPage() {
                   : 'opacity-0 translate-y-2 scale-[0.98]',
               ].join(' ')}
             >
-              {/* イラスト（主役） */}
-              <div className="mx-auto mb-5 h-[220px] w-[220px] overflow-hidden rounded-[28px]">
-                {eventImg && (
-                  <img
-                    src={eventImg}
-                    alt="駅イベントイラスト"
-                    className="h-full w-full object-cover select-none"
-                    draggable={false}
-                  />
-                )}
+              {/* イラスト（主役：16:10 横長） */}
+              <div className="mx-auto mb-6 w-full max-w-[640px]">
+                <div className="relative aspect-[16/10] overflow-hidden rounded-[24px]">
+                  {/* うっすらした光（箱を作らない方針） */}
+                  <div className="pointer-events-none absolute -inset-3 rounded-[28px] bg-white/30 blur-xl" />
+
+                  {eventImg && (
+                    <img
+                      src={eventImg}
+                      alt="駅イベントイラスト"
+                      className="relative z-10 h-full w-full select-none object-cover"
+                      draggable={false}
+                    />
+                  )}
+                </div>
               </div>
+
 
               {/* テキスト */}
               <p className="text-center text-xl font-extrabold text-slate-900">

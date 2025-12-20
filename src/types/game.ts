@@ -179,6 +179,11 @@ export interface DrinkResult {
     passiveMod: number  // パッシブ補正（後で調整）
 }
 
+export type TurnDrinkSnapshot = {
+    turn: number
+    drinks: DrinkResult[]
+}
+
 // 最新の進行状況
 export interface GameStateSlice {
     phase: Phase
@@ -203,6 +208,9 @@ export interface GameStateSlice {
 
     // 今ターンの杯数結果（プレイヤーごと）
     currentDrinks: DrinkResult[]
+
+    // ターン毎の杯数履歴
+    drinkHistory: TurnDrinkSnapshot[]
 
     // 直前で使ったカード（デバッグ用）
     lastUsedCard: LastUsedCard | null
