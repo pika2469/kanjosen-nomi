@@ -170,13 +170,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     >
       <div className="mx-auto flex h-full w-full max-w-md flex-col min-h-0">
         {/* 上部ヘッダー */}
-        <header className={['px-4 pt-6 pb-3',
+        <header className={['px-4 pb-4 pt-[calc(env(safe-area-inset-top)+50px)]',
                   isHomePage ? 'absolute left-0 right-0 top-0 z-20': ''
         ].join(' ')}>
-          <div className="text-lg font-semibold text-slate-800">
+          <div className="text-xl font-bold text-slate-800">
             環状線飲みアプリ
           </div>
-          <div className="text-[10px] text-slate-400">ver 1.5</div>
+          <div className="mt-1 text-[11px] text-slate-400">ver 1.6</div>
         </header>
 
         {/* メインコンテンツ */}
