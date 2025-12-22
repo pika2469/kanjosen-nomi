@@ -381,6 +381,10 @@ export const useGameStore = create<Store>((set, get) => ({
             : null
 
         set({
+            ui: {
+                ...get().ui,
+                currentPage: 'mood',
+            },
             game: {
                 ...g,
                 drinkHistory: snapshot ? [...g.drinkHistory, snapshot] : g.drinkHistory,
@@ -419,7 +423,16 @@ export const useGameStore = create<Store>((set, get) => ({
 
         // フェーズ1(ムードルーレット): この関数では処理しない。フェーズ2へ進む
         if (currentPhase === 'mood') {
+            // moodが未確定ならここで確定
+            if (!game.mood) {
+                get().spinMood()
+            }
             set((state) => ({
+                ...state,
+                ui: {
+                    ...state.ui,
+                    currentPage: 'station',
+                },
                 game: {
                     ...state.game,
                     phase: 'station',
@@ -431,6 +444,17 @@ export const useGameStore = create<Store>((set, get) => ({
 
         // フェーズ2(駅決定): ランダムに「何駅進むか」「方向」を決定して、駅+駅イベントを確定
         if (currentPhase === 'station') {
+            // すでに駅決定済なら、再抽選せず stationEvent へ
+            if (get().isStationDecided()) {
+                set((state) => ({
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'stationEvent' },
+                    game: { ...state.game, phase: 'stationEvent', phasePlayerIndex: null },
+                }))
+                return
+            }
+
+
             // 1~6駅のいずれをランダムに選ぶ
             const steps = Math.floor(Math.random() * 6) + 1
 
@@ -442,6 +466,11 @@ export const useGameStore = create<Store>((set, get) => ({
 
             // フェーズ3(stationEvent)へ進める
             set((state) => ({
+                ...state,
+                ui: {
+                    ...state.ui,
+                    currentPage: 'stationEvent',
+                },
                 game: {
                     ...state.game,
                     phase: 'stationEvent',
@@ -454,6 +483,8 @@ export const useGameStore = create<Store>((set, get) => ({
         // フェーズ3(駅イベント): フェーズ4に必要な変数を準備して移動
         if (currentPhase === 'stationEvent') {
             set((state) => ({
+                ...state,
+                ui: { ...state.ui, currentPage: 'roll' },
                 game: {
                     ...state.game,
                     phase: 'roll',
@@ -469,21 +500,27 @@ export const useGameStore = create<Store>((set, get) => ({
             // 操作中プレイヤーが見つからない場合は、フェーズをstationEventに戻す（安全処置）
             if (idx == null) {
                 set((state) => ({
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'stationEvent' },
                     game: { ...state.game, phase: 'stationEvent' },
                 }))
                 return
             }
 
-            // idx番目のプレイヤーの杯数だけ抽選
-            get().runRollPhaseForPlayer(idx)
+            // 二重ロール防止
+            const p = get().players[idx]
+            if (p) {
+                const rolled = get().game.currentDrinks.some((d) => d.playerId === p.id)
+                if (!rolled) {
+                    get().runRollPhaseForPlayer(idx)
+                }
+            }
 
-            // 抽選が終わったら、そのプレイヤーでフェーズ5(カードドロー)へ進む
+            // 遷移
             set((state) => ({
-                game: {
-                    ...state.game,
-                    phase: 'draw',
-                    phasePlayerIndex: idx,
-                },
+                ...state,
+                ui: { ...state.ui, currentPage: 'draw' },
+                game: { ...state.game, phase: 'draw', phasePlayerIndex: idx },
             }))
             return
         }
@@ -492,60 +529,36 @@ export const useGameStore = create<Store>((set, get) => ({
         if (currentPhase === 'draw') {
             if (idx == null) {
                 set((state) => ({
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'roll' },
                     game: { ...state.game, phase: 'roll', phasePlayerIndex: 0 },
                 }))
                 return
             }
 
-            // 現在の操作プレイヤーがカードを引く
-            const stateBefore = get()
-            const player = stateBefore.players[idx]
-            // if (player) {
-            //     const extra = player.nextTurnExtraDraw ?? 0 // nextTurnExtraDrawはnumber型
-
-            //     // ベースの1ドロー
-            //     stateBefore.drawCard(player.id)
-
-            //     // 追加ドロー
-            //     if (extra > 0) {
-            //         for (let i = 0; i < extra; i++) {
-            //             stateBefore.drawCard(player.id)
-            //         }
-
-            //         // 追加ドローが終わったらnextTurnExtraDrawを0に戻す
-            //         set((state) => ({
-            //             ...state,
-            //             players: state.players.map((p, pIdx) =>
-            //                 pIdx === idx
-            //                 ? { ...p, nextTurnExtraDraw: 0 }
-            //                 : p,
-            //             ),
-            //         }))
-            //     }
-            // }
-
+            // 二重ドロー防止
+            const player = get().players[idx]
             if (player) {
-                get().drawForDrawPhase(player.id)
+                const alreadyDrawn = (get().game.drawnPlayerIds ?? []).includes(player.id)
+                if (!alreadyDrawn) {
+                    get().drawForDrawPhase(player.id)
+                }
             }
 
-            // 次の処理分岐
+            // 次フェーズへ
             if (idx + 1 < playerCount) {
                 // まだ次のプレイヤーがいる場合は、次のプレイヤーのフェーズ4へ移動
                 set((state) => ({
-                    game: {
-                        ...state.game,
-                        phase: 'roll',
-                        phasePlayerIndex: idx + 1,
-                    },
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'roll' },
+                    game: { ...state.game, phase: 'roll', phasePlayerIndex: idx + 1 }
                 }))
             } else {
                 // 全員の処理が終了した場合は、フェーズ6へ移動
                 set((state) => ({
-                    game: {
-                        ...state.game,
-                        phase: 'useCards',
-                        phasePlayerIndex: 0,
-                    },
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'useCards' },
+                    game: { ...state.game, phase: 'useCards', phasePlayerIndex: 0 },
                 }))
             }
             return
@@ -555,6 +568,8 @@ export const useGameStore = create<Store>((set, get) => ({
         if (currentPhase === 'useCards') {
             if (idx == null) {
                 set((state) => ({
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'progress' },
                     game: {
                         ...state.game,
                         phase: 'progress',
@@ -568,6 +583,8 @@ export const useGameStore = create<Store>((set, get) => ({
             if (idx + 1 < playerCount) {
                 // まだ次のプレイヤーがいる場合は、次のプレイヤーのフェーズ6へ移動
                 set((state) => ({
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'useCards' },
                     game: {
                         ...state.game,
                         phase: 'useCards',
@@ -577,6 +594,8 @@ export const useGameStore = create<Store>((set, get) => ({
             } else {
                 // 全員の処理が終了した場合は、フェーズ7へ移動
                 set((state) => ({
+                    ...state,
+                    ui: { ...state.ui, currentPage: 'progress' },
                     game: {
                         ...state.game,
                         phase: 'progress',
@@ -591,6 +610,8 @@ export const useGameStore = create<Store>((set, get) => ({
         if (currentPhase === 'progress') {
             get().runProgressPhase()
             set((state) => ({
+                ...state,
+                ui: { ...state.ui, currentPage: 'result' },
                 game: {
                     ...state.game,
                     phase: 'result',
@@ -602,7 +623,12 @@ export const useGameStore = create<Store>((set, get) => ({
 
         // フェーズ8(結果表示): nextTurnを呼び出してターン移動
         if (currentPhase === 'result') {
-            get().nextTurn() // phase='mood' / phasePlayerIndex=nullに戻す
+            get().nextTurn()
+            // nextTurn で game は mood に戻るが、念のため ui も合わせる
+            set((state) => ({
+                ...state,
+                ui: { ...state.ui, currentPage: 'mood' },
+            }))
             return
         }
     },

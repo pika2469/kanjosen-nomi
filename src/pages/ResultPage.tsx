@@ -3,6 +3,8 @@ import { useGameStore } from '@/store/gameStore'
 import { STATION_ORDER, findStation } from '@/stations'
 import type { StationId, DrinkResult } from '@/types/game'
 import { calcTurnXpFromDrinks } from '@/xpLogic'
+import { PageShell } from '@/components/layout/PageShell'
+import { StickyNextBar } from '@/components/layout/StickyNextBar'
 
 /* ===== XP 表示用（暫定：既存仕様に合わせた閾値） ===== */
 const LEVEL_XP_THRESHOLDS = [0, 3, 7, 12, 18] as const
@@ -34,7 +36,7 @@ function polarToXY(radius: number, angleRad: number) {
 }
 
 export function ResultPage() {
-  const { game, players, setPage, nextTurn } = useGameStore()
+  const { game, players, setPage, proceedPhase } = useGameStore()
 
   const [showHistory, setShowHistory] = useState(false)
   const [showDrinkTrend, setShowDrinkTrend] = useState(false)
@@ -111,442 +113,413 @@ export function ResultPage() {
     })
   }
 
-  const handleNextTurn = () => {
-    nextTurn()
-    setPage('mood')
-  }
-
   return (
-    <div className="flex min-h-full flex-col gap-4">
-      {/* ===== Header ===== */}
-      <header className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold text-sky-500">
-              STEP 8 / Result
-            </p>
-            <h1 className="text-lg font-bold text-slate-900">リザルト</h1>
+    <PageShell
+      step="STEP 8 / Result"
+      title="リザルト"
+      description="このターンの結果サマリです。"
+      rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
+    >
+      <div className="flex min-h-full flex-col gap-4">
+        {/* ===== 訪問駅 ===== */}
+        <section className="rounded-3xl bg-white/85 p-4 shadow-md ring-1 ring-black/5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="font-semibold text-slate-800">訪問駅</p>
+
+            <button
+              className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+              onClick={() => setShowHistory((v) => !v)}
+              type="button"
+            >
+              履歴 {showHistory ? '非表示' : '表示'}
+            </button>
           </div>
 
-          {activePlayer && (
-            <span className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-white">
-              代表: {activePlayer.name}
-            </span>
-          )}
-        </div>
-
-        <p className="text-xs text-slate-500">このターンの結果サマリです。</p>
-      </header>
-
-      {/* ===== 訪問駅 ===== */}
-      <section className="rounded-3xl bg-white/85 p-4 shadow-md ring-1 ring-black/5">
-        {/* 見出し（青い●なし） */}
-        <div className="mb-3 flex items-center justify-between">
-          <p className="font-semibold text-slate-800">訪問駅</p>
-
-          <button
-            className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
-            onClick={() => setShowHistory((v) => !v)}
-            type="button"
-          >
-            履歴 {showHistory ? '非表示' : '表示'}
-          </button>
-        </div>
-
-        {/* ターン + 現在駅（値は中央寄せ） */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-2xl border bg-slate-50 px-4 py-3 text-center">
-            <p className="text-[11px] font-semibold text-slate-500">ターン</p>
-            <p className="mt-1 text-sm font-bold text-slate-900">{game.turn}</p>
-          </div>
-
-          <div className="rounded-2xl border bg-slate-900 px-4 py-3 text-center shadow-sm">
-            <p className="text-[11px] font-semibold text-slate-200">現在駅</p>
-            <p className="mt-1 truncate text-sm font-extrabold text-white">
-              {currentStationName}
-            </p>
-          </div>
-        </div>
-
-        {/* 訪問駅マップ（ドット＋中央カード） */}
-        <div className="mt-4">
-          <p className="mb-2 text-left text-xs font-semibold text-slate-500">
-            訪問駅マップ
-          </p>
-
-          <div className="relative mx-auto aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl bg-gradient-to-b from-white to-slate-50 p-3 shadow-inner">
-            {/* ガイド円：外側のみ（内側円は無し） */}
-            <div className="absolute inset-10 rounded-full border border-slate-200" />
-
-            {/* 中央カード（枠線なし・簡素化） */}
-            <div className="absolute left-1/2 top-1/2 w-[74%] -translate-x-1/2 -translate-y-1/2 text-center">
-              <div
-                className={[
-                  'rounded-2xl bg-white/90 px-3 py-3 shadow-sm',
-                  'transition-transform duration-150 ease-out',
-                  popCenter
-                    ? '-translate-y-1 scale-[1.01] shadow-md'
-                    : 'translate-y-0 scale-100',
-                ].join(' ')}
-              >
-                <p className="truncate rounded-full bg-slate-50 px-3 py-2 text-base font-extrabold text-slate-900">
-                  {selectedStationName}
-                </p>
-                <p className="mt-2 text-[10px] text-slate-400">
-                  点をタップすると駅名を表示します
-                </p>
-              </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border bg-slate-50 px-4 py-3 text-center">
+              <p className="text-[11px] font-semibold text-slate-500">ターン</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">{game.turn}</p>
             </div>
 
-            {/* 点（19駅） */}
-            {STATION_ORDER.map((sid, i) => {
-              const angle =
-                (Math.PI * 2 * i) / STATION_ORDER.length - Math.PI / 2
-              const { x, y } = polarToXY(105, angle)
-
-              const isVisited = visitedSet.has(sid)
-              const isCurrent = game.currentStation === sid
-
-              const dotFill = isCurrent
-                ? 'bg-slate-900'
-                : isVisited
-                  ? 'bg-sky-400'
-                  : 'bg-slate-300'
-
-              const dotShadow = isCurrent
-                ? 'shadow-[0_0_0_3px_rgba(14,165,233,0.18)]'
-                : ''
-
-              const isSelected = selectedStationId === sid
-
-              return (
-                <button
-                  key={sid}
-                  type="button"
-                  onClick={() => handleSelectDot(sid)}
-                  className="absolute left-1/2 top-1/2"
-                  style={{
-                    transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
-                  }}
-                  aria-label={`駅を選択: ${findStation(sid)?.name ?? String(sid)}`}
-                >
-                  <div
-                    className={[
-                      'h-4 w-4 rounded-full transition-transform',
-                      dotFill,
-                      dotShadow,
-                      isSelected ? 'scale-110' : 'scale-100',
-                      isSelected ? 'shadow-md' : '',
-                    ].join(' ')}
-                  />
-                </button>
-              )
-            })}
-          </div>
-
-          {/* 凡例（中央寄せ） */}
-          <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-slate-500">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-3 w-3 rounded-full bg-sky-400" />
-              訪問済
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-3 w-3 rounded-full bg-slate-900" />
-              現在駅
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-3 w-3 rounded-full bg-slate-300" />
-              未訪問
-            </span>
-          </div>
-        </div>
-
-        {/* 履歴 */}
-        {showHistory && (
-          <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs font-semibold text-slate-600">訪問履歴</p>
-
-            {game.visitedStations.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-500">まだ履歴がありません。</p>
-            ) : (
-              <ul className="mt-2 space-y-1">
-                {game.visitedStations.map((id, idx) => {
-                  const s = findStation(id)
-                  return (
-                    <li
-                      key={`${id}-${idx}`}
-                      className="flex items-center justify-between rounded-xl bg-white px-3 py-2"
-                    >
-                      <span className="text-[11px] text-slate-500">
-                        ターン {idx + 1}
-                      </span>
-                      <span className="text-sm font-semibold text-slate-900">
-                        {s?.name ?? id}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ===== 今回の最終杯数 ===== */}
-      <section className="rounded-3xl bg-white/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-xs font-semibold text-slate-500">杯数推移</p>
-          <button
-            type="button"
-            onClick={() => setShowDrinkTrend((v) => !v)}
-            className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
-          >
-            {showDrinkTrend ? '非表示' : '表示'}
-          </button>
-        </div>
-
-        {mergedDrinkHistory.length === 0 ? (
-          <p className="mt-2 text-xs text-slate-500">まだ履歴がありません。</p>
-        ) : (
-          showDrinkTrend && (
-            <div className="space-y-3">
-              {players.map((p) => (
-                <div key={p.id} className="rounded-2xl bg-slate-50 px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-slate-600">{p.name}</p>
-                    {p.id === activePlayer?.id && (
-                      <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                        代表
-                      </span>
-                    )}
-                  </div>
-
-                  <ul className="mt-2 space-y-1">
-                    {mergedDrinkHistory.map((h) => {
-                      const v = getFinalAt(h.turn, p.id)
-                      return (
-                        <li
-                          key={`${p.id}-turn-${h.turn}`}
-                          className="flex items-center justify-between rounded-xl bg-white px-3 py-2"
-                        >
-                          <span className="text-[11px] text-slate-500">ターン {h.turn}</span>
-
-                          {v == null ? (
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-extrabold text-slate-500">
-                              ---
-                            </span>
-                          ) : (
-                            <span
-                              className={[
-                                'rounded-full px-3 py-1 text-[12px] font-extrabold',
-                                drinkPillClass(v),
-                              ].join(' ')}
-                            >
-                              {v}杯
-                            </span>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )
-        )}
-      </section>
-
-      {/* ===== プレイヤー成長記録 ===== */}
-      <section className="rounded-3xl bg-white/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
-        <p className="mb-2 text-xs font-semibold text-slate-500">
-          プレイヤー成長記録
-        </p>
-
-        <ul className="space-y-2">
-          {players.map((p) => {
-            const gain = getXpGainForPlayer(p.id)
-            const { isMax, cur, next } = getLevelXpRange(p.level)
-            const denom = Math.max(1, next - cur)
-            const ratio = isMax ? 1 : clamp01((p.xp - cur) / denom)
-            const pct = Math.round(ratio * 100)
-
-            const barClass =
-              pct >= 80
-                ? 'bg-emerald-500'
-                : pct >= 50
-                  ? 'bg-sky-500'
-                  : 'bg-indigo-500'
-
-            return (
-              <li key={p.id} className="rounded-2xl bg-white px-3 py-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">
-                    {p.name}
-                    {p.id === activePlayer?.id && (
-                      <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                        代表
-                      </span>
-                    )}
-                  </span>
-
-                  {gain > 0 ? (
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-800">
-                      このターン +{gain} XP
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
-                      +0 XP
-                    </span>
-                  )}
-                </div>
-
-                {/* Lv / XP */}
-                <div className="mt-2">
-                  <div className="flex items-baseline justify-between text-xs text-slate-600">
-                    <span>
-                      Lv <b className="text-slate-900">{p.level}</b> / XP{' '}
-                      <b className="text-slate-900">{p.xp}</b>
-                      {!isMax && (
-                        <span className="text-slate-500">
-                          （次Lvまで {Math.max(0, next - p.xp)}）
-                        </span>
-                      )}
-                      {isMax && <span className="text-slate-500">（MAX）</span>}
-                    </span>
-                    <span className="text-slate-500">
-                      {isMax ? 'MAX' : `${pct}%`}
-                    </span>
-                  </div>
-
-                  {/* 経験値バー（下の数字なし） */}
-                  <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className={`h-2.5 ${barClass}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* SP */}
-                <div className="mt-3 flex items-center justify-between text-xs">
-                  <span className="text-slate-700">
-                    SP <b className="text-slate-900">{p.sp}</b>
-                  </span>
-                  <button
-                    className="font-semibold text-indigo-600 hover:text-indigo-700"
-                    onClick={() => setPage('passives')}
-                    type="button"
-                  >
-                    スキルツリーへ →
-                  </button>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      </section>
-
-      {/* 次へ */}
-      <button
-        className="rounded-full bg-green-600 py-3 text-base font-bold text-white hover:bg-green-700 active:scale-[0.99] transition"
-        onClick={handleNextTurn}
-        type="button"
-      >
-        次のターンへ
-      </button>
-
-      {/* ===== Debug ===== */}
-      <section className="mt-4 rounded-3xl bg-slate-50 px-4 py-3 text-xs text-slate-600 ring-1 ring-black/5">
-        <button
-          type="button"
-          onClick={() => setShowDebug((v) => !v)}
-          className="mb-2 rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-300"
-        >
-          Debug {showDebug ? '非表示' : '表示'}
-        </button>
-
-        {showDebug && (
-          <div className="space-y-3">
-            {/* 基本情報 */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="font-semibold">phase</p>
-                <p className="font-mono">{game.phase}</p>
-              </div>
-              <div>
-                <p className="font-semibold">turn</p>
-                <p className="font-mono">{game.turn}</p>
-              </div>
-              <div>
-                <p className="font-semibold">mood</p>
-                <p className="font-mono">{String(game.mood)}</p>
-              </div>
-              <div>
-                <p className="font-semibold">activePlayerIndex</p>
-                <p className="font-mono">{game.activePlayerIndex}</p>
-              </div>
-            </div>
-
-            {/* 駅情報 */}
-            <div>
-              <p className="font-semibold">currentStation</p>
-              <p className="font-mono">
-                {String(game.currentStation)} / {currentStationName}
+            <div className="rounded-2xl border bg-slate-900 px-4 py-3 text-center shadow-sm">
+              <p className="text-[11px] font-semibold text-slate-200">現在駅</p>
+              <p className="mt-1 truncate text-sm font-extrabold text-white">
+                {currentStationName}
               </p>
             </div>
+          </div>
 
-            <div>
-              <p className="font-semibold">visitedStations</p>
-              <ul className="mt-1 space-y-1">
-                {game.visitedStations.map((id, idx) => (
-                  <li key={`${id}-${idx}`} className="font-mono">
-                    {idx + 1}. {String(id)} / {findStation(id)?.name ?? 'unknown'}
-                  </li>
-                ))}
-              </ul>
+          <div className="mt-4">
+            <p className="mb-2 text-left text-xs font-semibold text-slate-500">
+              訪問駅マップ
+            </p>
+
+            <div className="relative mx-auto aspect-square w-full max-w-[340px] overflow-hidden rounded-3xl bg-gradient-to-b from-white to-slate-50 p-3 shadow-inner">
+              <div className="absolute inset-10 rounded-full border border-slate-200" />
+
+              <div className="absolute left-1/2 top-1/2 w-[74%] -translate-x-1/2 -translate-y-1/2 text-center">
+                <div
+                  className={[
+                    'rounded-2xl bg-white/90 px-3 py-3 shadow-sm',
+                    'transition-transform duration-150 ease-out',
+                    popCenter
+                      ? '-translate-y-1 scale-[1.01] shadow-md'
+                      : 'translate-y-0 scale-100',
+                  ].join(' ')}
+                >
+                  <p className="truncate rounded-full bg-slate-50 px-3 py-2 text-base font-extrabold text-slate-900">
+                    {selectedStationName}
+                  </p>
+                  <p className="mt-2 text-[10px] text-slate-400">
+                    点をタップすると駅名を表示します
+                  </p>
+                </div>
+              </div>
+
+              {STATION_ORDER.map((sid, i) => {
+                const angle =
+                  (Math.PI * 2 * i) / STATION_ORDER.length - Math.PI / 2
+                const { x, y } = polarToXY(105, angle)
+
+                const isVisited = visitedSet.has(sid)
+                const isCurrent = game.currentStation === sid
+
+                const dotFill = isCurrent
+                  ? 'bg-slate-900'
+                  : isVisited
+                    ? 'bg-sky-400'
+                    : 'bg-slate-300'
+
+                const dotShadow = isCurrent
+                  ? 'shadow-[0_0_0_3px_rgba(14,165,233,0.18)]'
+                  : ''
+
+                const isSelected = selectedStationId === sid
+
+                return (
+                  <button
+                    key={sid}
+                    type="button"
+                    onClick={() => handleSelectDot(sid)}
+                    className="absolute left-1/2 top-1/2"
+                    style={{
+                      transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
+                    }}
+                    aria-label={`駅を選択: ${findStation(sid)?.name ?? String(sid)}`}
+                  >
+                    <div
+                      className={[
+                        'h-4 w-4 rounded-full transition-transform',
+                        dotFill,
+                        dotShadow,
+                        isSelected ? 'scale-110' : 'scale-100',
+                        isSelected ? 'shadow-md' : '',
+                      ].join(' ')}
+                    />
+                  </button>
+                )
+              })}
             </div>
 
-            {/* 杯数ロジック */}
-            <div>
-              <p className="font-semibold">currentDrinks</p>
-              {game.currentDrinks.length === 0 ? (
-                <p className="font-mono text-slate-400">none</p>
+            <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-slate-500">
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-full bg-sky-400" />
+                訪問済
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-full bg-slate-900" />
+                現在駅
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-full bg-slate-300" />
+                未訪問
+              </span>
+            </div>
+          </div>
+
+          {showHistory && (
+            <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3">
+              <p className="text-xs font-semibold text-slate-600">訪問履歴</p>
+
+              {game.visitedStations.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  まだ履歴がありません。
+                </p>
               ) : (
-                <ul className="mt-1 space-y-1">
-                  {game.currentDrinks.map((d) => (
-                    <li key={d.playerId} className="font-mono">
-                      {d.playerId} | base:{d.base} mood:{d.moodMod} event:{d.eventMod}{' '}
-                      passive:{d.passiveMod} → final:{d.final}
-                    </li>
-                  ))}
+                <ul className="mt-2 space-y-1">
+                  {game.visitedStations.map((id, idx) => {
+                    const s = findStation(id)
+                    return (
+                      <li
+                        key={`${id}-${idx}`}
+                        className="flex items-center justify-between rounded-xl bg-white px-3 py-2"
+                      >
+                        <span className="text-[11px] text-slate-500">
+                          ターン {idx + 1}
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900">
+                          {s?.name ?? id}
+                        </span>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>
+          )}
+        </section>
 
-            {/* XP */}
-            <div>
-              <p className="font-semibold">XP gain (this turn)</p>
-              <ul className="mt-1 space-y-1">
-                {players.map((p) => (
-                  <li key={p.id} className="font-mono">
-                    {p.name}: +{getXpGainForPlayer(p.id)} XP
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* UI State */}
-            <div>
-              <p className="font-semibold">UI state</p>
-              <p className="font-mono">
-                selectedStationId: {String(selectedStationId)} / popCenter: {String(popCenter)} /
-                showHistory: {String(showHistory)}
-              </p>
-            </div>
+        {/* ===== 今回の最終杯数 ===== */}
+        <section className="rounded-3xl bg-white/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-500">杯数推移</p>
+            <button
+              type="button"
+              onClick={() => setShowDrinkTrend((v) => !v)}
+              className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+            >
+              {showDrinkTrend ? '非表示' : '表示'}
+            </button>
           </div>
-        )}
-      </section>
-    </div>
+
+          {mergedDrinkHistory.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-500">まだ履歴がありません。</p>
+          ) : (
+            showDrinkTrend && (
+              <div className="space-y-3">
+                {players.map((p) => (
+                  <div key={p.id} className="rounded-2xl bg-slate-50 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-600">
+                        {p.name}
+                      </p>
+                      {p.id === activePlayer?.id && (
+                        <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          代表
+                        </span>
+                      )}
+                    </div>
+
+                    <ul className="mt-2 space-y-1">
+                      {mergedDrinkHistory.map((h) => {
+                        const v = getFinalAt(h.turn, p.id)
+                        return (
+                          <li
+                            key={`${p.id}-turn-${h.turn}`}
+                            className="flex items-center justify-between rounded-xl bg-white px-3 py-2"
+                          >
+                            <span className="text-[11px] text-slate-500">
+                              ターン {h.turn}
+                            </span>
+
+                            {v == null ? (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-extrabold text-slate-500">
+                                ---
+                              </span>
+                            ) : (
+                              <span
+                                className={[
+                                  'rounded-full px-3 py-1 text-[12px] font-extrabold',
+                                  drinkPillClass(v),
+                                ].join(' ')}
+                              >
+                                {v}杯
+                              </span>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </section>
+
+        {/* ===== プレイヤー成長記録 ===== */}
+        <section className="rounded-3xl bg-white/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
+          <p className="mb-2 text-xs font-semibold text-slate-500">
+            プレイヤー成長記録
+          </p>
+
+          <ul className="space-y-2">
+            {players.map((p) => {
+              const gain = getXpGainForPlayer(p.id)
+              const { isMax, cur, next } = getLevelXpRange(p.level)
+              const denom = Math.max(1, next - cur)
+              const ratio = isMax ? 1 : clamp01((p.xp - cur) / denom)
+              const pct = Math.round(ratio * 100)
+
+              const barClass =
+                pct >= 80
+                  ? 'bg-emerald-500'
+                  : pct >= 50
+                    ? 'bg-sky-500'
+                    : 'bg-indigo-500'
+
+              return (
+                <li key={p.id} className="rounded-2xl bg-white px-3 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold">
+                      {p.name}
+                      {p.id === activePlayer?.id && (
+                        <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                          代表
+                        </span>
+                      )}
+                    </span>
+
+                    {gain > 0 ? (
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-800">
+                        このターン +{gain} XP
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600">
+                        +0 XP
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-2">
+                    <div className="flex items-baseline justify-between text-xs text-slate-600">
+                      <span>
+                        Lv <b className="text-slate-900">{p.level}</b> / XP{' '}
+                        <b className="text-slate-900">{p.xp}</b>
+                        {!isMax && (
+                          <span className="text-slate-500">
+                            （次Lvまで {Math.max(0, next - p.xp)}）
+                          </span>
+                        )}
+                        {isMax && <span className="text-slate-500">（MAX）</span>}
+                      </span>
+                      <span className="text-slate-500">
+                        {isMax ? 'MAX' : `${pct}%`}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className={`h-2.5 ${barClass}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-xs">
+                    <span className="text-slate-700">
+                      SP <b className="text-slate-900">{p.sp}</b>
+                    </span>
+                    <button
+                      className="font-semibold text-indigo-600 hover:text-indigo-700"
+                      onClick={() => setPage('passives')}
+                      type="button"
+                    >
+                      スキルツリーへ →
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+
+        <StickyNextBar
+          label="次のターンへ"
+          onNext={proceedPhase}
+          disabled={!hasDrinks}
+          hint={!hasDrinks ? '※ まだ結果がありません。' : undefined}
+        />
+
+        {/* ===== Debug ===== */}
+        <section className="mt-4 rounded-3xl bg-slate-50 px-4 py-3 text-xs text-slate-600 ring-1 ring-black/5">
+          <button
+            type="button"
+            onClick={() => setShowDebug((v) => !v)}
+            className="mb-2 rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-300"
+          >
+            Debug {showDebug ? '非表示' : '表示'}
+          </button>
+
+          {showDebug && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="font-semibold">phase</p>
+                  <p className="font-mono">{game.phase}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">turn</p>
+                  <p className="font-mono">{game.turn}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">mood</p>
+                  <p className="font-mono">{String(game.mood)}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">activePlayerIndex</p>
+                  <p className="font-mono">{game.activePlayerIndex}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-semibold">currentStation</p>
+                <p className="font-mono">
+                  {String(game.currentStation)} / {currentStationName}
+                </p>
+              </div>
+
+              <div>
+                <p className="font-semibold">visitedStations</p>
+                <ul className="mt-1 space-y-1">
+                  {game.visitedStations.map((id, idx) => (
+                    <li key={`${id}-${idx}`} className="font-mono">
+                      {idx + 1}. {String(id)} /{' '}
+                      {findStation(id)?.name ?? 'unknown'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-semibold">currentDrinks</p>
+                {game.currentDrinks.length === 0 ? (
+                  <p className="font-mono text-slate-400">none</p>
+                ) : (
+                  <ul className="mt-1 space-y-1">
+                    {game.currentDrinks.map((d) => (
+                      <li key={d.playerId} className="font-mono">
+                        {d.playerId} | base:{d.base} mood:{d.moodMod} event:
+                        {d.eventMod} passive:{d.passiveMod} → final:{d.final}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">XP gain (this turn)</p>
+                <ul className="mt-1 space-y-1">
+                  {players.map((p) => (
+                    <li key={p.id} className="font-mono">
+                      {p.name}: +{getXpGainForPlayer(p.id)} XP
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-semibold">UI state</p>
+                <p className="font-mono">
+                  selectedStationId: {String(selectedStationId)} / popCenter:{' '}
+                  {String(popCenter)} / showHistory: {String(showHistory)}
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </PageShell>
   )
 }
 

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import type { CardId } from '@/types/game'
 import { getCardById } from '@/cards'
+import { PageShell } from '@/components/layout/PageShell'
+import { StickyNextBar } from '@/components/layout/StickyNextBar'
 
 // フォールバック画像（未用意カード用）
 import cardDefaultImg from '@/assets/cards/card_default.png'
@@ -64,7 +66,7 @@ function getCardTheme(cardId: string) {
 }
 
 export default function UseCardsPage() {
-  const { game, players, useCard } = useGameStore()
+  const { game, players, useCard, proceedPhase } = useGameStore()
 
   const phasePlayer =
     game.phasePlayerIndex != null ? players[game.phasePlayerIndex] : null
@@ -80,7 +82,6 @@ export default function UseCardsPage() {
     const r = game.currentDrinks.find((d) => d.playerId === playerId)
     return r ? r.final : null
   }
-
 
   // ▼ 修正：選択状態は cardId ではなく「手札インデックス」で管理（同カード重複対応）
   const [selectedHandIndex, setSelectedHandIndex] = useState<number>(-1)
@@ -161,300 +162,285 @@ export default function UseCardsPage() {
             : 'その他'
   }, [selectedCardId])
 
+  const canNext = !!phasePlayer // カード使用は任意なので、基本は次へ進める
+  const nextHint = !phasePlayer
+    ? '※ 操作中プレイヤーが見つかりません。'
+    : isBlocked
+      ? '※ このターンはカード使用不可です（次へ進めます）。'
+      : hand.length === 0
+        ? '※ 手札がありません（次へ進めます）。'
+        : undefined
+
   return (
-    <div className="flex min-h-full flex-col gap-3">
-      {/* Header */}
-      <header className="space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1 text-left">
-            <p className="text-[11px] font-semibold text-sky-500">
-              STEP 6 / Cards
-            </p>
-            <h1 className="text-lg font-bold text-slate-900">カードを使おう</h1>
+    <PageShell
+      step="STEP 6 / Cards"
+      title="カードを使おう"
+      description="処理中プレイヤーの手札からカードを選んで使用します。"
+      rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
+    >
+      <div className="flex min-h-full flex-col gap-3">
+        {/* Main */}
+        <section className="rounded-2xl border bg-white/80 p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-slate-500">操作中プレイヤー</p>
+              <p className="text-base font-semibold">
+                {phasePlayer ? phasePlayer.name : '---'}
+              </p>
+            </div>
+
+            {isBlocked && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                このターンはカード使用不可
+              </span>
+            )}
           </div>
 
-          {activePlayer && (
-            <span className="shrink-0 rounded-full bg-slate-900 px-4 py-2 text-[11px] font-semibold text-white">
-              代表: {activePlayer.name}
-            </span>
-          )}
-        </div>
-
-        {/* 縦圧縮：説明文を短く＆小さく */}
-        <p className="text-xs text-slate-600">
-          処理中プレイヤーの手札からカードを選んで使用します。
-        </p>
-      </header>
-
-      {/* Main */}
-      <section className="rounded-2xl border bg-white/80 p-3 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs text-slate-500">操作中プレイヤー</p>
-            <p className="text-base font-semibold">
-              {phasePlayer ? phasePlayer.name : '---'}
-            </p>
-          </div>
-
-          {isBlocked && (
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              このターンはカード使用不可
-            </span>
-          )}
-        </div>
-
-        <div className="mt-3 space-y-3">
-          {!phasePlayer ? (
-            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              操作中プレイヤーが見つかりません。
-            </div>
-          ) : hand.length === 0 ? (
-            <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              手札がありません。
-            </div>
-          ) : (
-            <>
-              {/* 上段：カードアイコン行（横スクロール可） */}
-              <div className="rounded-2xl border bg-white p-2">
-                {/* ハイライト欠け対策：スクロール領域に余白（p-2）を付与 */}
-                <div className="flex items-center gap-2 overflow-x-auto p-2">
-                  {hand.map((cid, idx) => {
-                    const img = getCardImage(cid as CardId)
-                    const isActive = idx === selectedHandIndex
-
-                    return (
-                      <button
-                        key={`${cid}-${idx}`} // ★重複回避
-                        type="button"
-                        onClick={() => setSelectedHandIndex(idx)} // ★indexで選択
-                        className={[
-                          'shrink-0 rounded-xl p-1 transition',
-                          'outline-none focus:outline-none focus-visible:outline-none',
-                          isActive
-                            ? 'ring-2 ring-sky-400 -translate-y-0.5 shadow-sm' // 軽く浮かせる
-                            : 'ring-1 ring-slate-200 hover:ring-slate-300',
-                        ].join(' ')}
-                        aria-label={`カード選択: ${cid}`}
-                      >
-                        <img
-                          src={img}
-                          alt={String(cid)}
-                          className="h-12 w-12 select-none object-contain"
-                          draggable={false}
-                        />
-                      </button>
-                    )
-                  })}
-                </div>
+          <div className="mt-3 space-y-3">
+            {!phasePlayer ? (
+              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                操作中プレイヤーが見つかりません。
               </div>
+            ) : hand.length === 0 ? (
+              <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                手札がありません。
+              </div>
+            ) : (
+              <>
+                {/* 上段：カードアイコン行（横スクロール可） */}
+                <div className="rounded-2xl border bg-white p-2">
+                  {/* ハイライト欠け対策：スクロール領域に余白（p-2）を付与 */}
+                  <div className="flex items-center gap-2 overflow-x-auto p-2">
+                    {hand.map((cid, idx) => {
+                      const img = getCardImage(cid as CardId)
+                      const isActive = idx === selectedHandIndex
 
-              {/* 下段：詳細カード（1枚だけ表示） */}
-              {selectedCardId && selectedTheme && selectedImg && (
-                <div
-                  className={[
-                    'overflow-hidden rounded-2xl border bg-white',
-                    selectedTheme.frame,
-                    // ★中央カードを少し浮かせる演出
-                    '-translate-y-1 shadow-md',
-                    'transition-transform duration-150',
-                  ].join(' ')}
-                >
-                  {/* ポケカ風：上部にカード名 */}
+                      return (
+                        <button
+                          key={`${cid}-${idx}`} // ★重複回避
+                          type="button"
+                          onClick={() => setSelectedHandIndex(idx)} // ★indexで選択
+                          className={[
+                            'shrink-0 rounded-xl p-1 transition',
+                            'outline-none focus:outline-none focus-visible:outline-none',
+                            isActive
+                              ? 'ring-2 ring-sky-400 -translate-y-0.5 shadow-sm' // 軽く浮かせる
+                              : 'ring-1 ring-slate-200 hover:ring-slate-300',
+                          ].join(' ')}
+                          aria-label={`カード選択: ${cid}`}
+                        >
+                          <img
+                            src={img}
+                            alt={String(cid)}
+                            className="h-12 w-12 select-none object-contain"
+                            draggable={false}
+                          />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 下段：詳細カード（1枚だけ表示） */}
+                {selectedCardId && selectedTheme && selectedImg && (
                   <div
                     className={[
-                      'flex items-center justify-between gap-2 border-b px-4 py-3',
-                      'bg-gradient-to-r',
-                      selectedTheme.header,
+                      'overflow-hidden rounded-2xl border bg-white',
+                      selectedTheme.frame,
+                      // ★中央カードを少し浮かせる演出
+                      '-translate-y-1 shadow-md',
+                      'transition-transform duration-150',
                     ].join(' ')}
                   >
-                    <p className="min-w-0 truncate text-base font-extrabold text-slate-900">
-                      {selectedName}
-                    </p>
-                    <span
+                    <div
                       className={[
-                        'shrink-0 rounded-full px-3 py-1 text-[11px] font-bold',
-                        selectedTheme.badge,
+                        'flex items-center justify-between gap-2 border-b px-4 py-3',
+                        'bg-gradient-to-r',
+                        selectedTheme.header,
                       ].join(' ')}
                     >
-                      {kindLabel}
-                    </span>
-                  </div>
-
-                  {/* 画像（縦圧縮：h-48 → h-40） */}
-                  <div className="px-4 pt-3">
-                    <div className="rounded-2xl bg-white p-3">
-                      <img
-                        src={selectedImg}
-                        alt={selectedName}
-                        className="mx-auto block h-40 w-full select-none object-contain"
-                        draggable={false}
-                      />
+                      <p className="min-w-0 truncate text-base font-extrabold text-slate-900">
+                        {selectedName}
+                      </p>
+                      <span
+                        className={[
+                          'shrink-0 rounded-full px-3 py-1 text-[11px] font-bold',
+                          selectedTheme.badge,
+                        ].join(' ')}
+                      >
+                        {kindLabel}
+                      </span>
                     </div>
 
-                    <p className="mt-2 text-center text-[11px] font-mono text-slate-500">
-                      {selectedCardId}
-                    </p>
-                  </div>
-
-                  {/* 説明文＋使用ボタン */}
-                  <div className="px-4 pb-4 pt-2">
-                    {/* atk_shoot の時だけターゲット選択 */}
-                    {selectedCardId === 'atk_shoot' && (
-                      <div className="mb-3 rounded-xl bg-slate-50 p-3">
-                        <p className="text-xs font-semibold text-slate-700">
-                          狙い撃ち：対象プレイヤー
-                        </p>
-                        <div className="mt-2">
-                          <select
-                            className="w-full rounded-md border bg-white px-3 py-2 text-sm"
-                            value={shootTargetId}
-                            onChange={(e) => setShootTargetId(e.target.value)}
-                            disabled={isBlocked || shootTargets.length === 0}
-                          >
-                            <option value="">選択してください</option>
-                            {shootTargets.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <p className="mt-2 text-xs text-slate-500">
-                          ※未選択の場合、狙い撃ちは実行できません。
-                        </p>
+                    <div className="px-4 pt-3">
+                      <div className="rounded-2xl bg-white p-3">
+                        <img
+                          src={selectedImg}
+                          alt={selectedName}
+                          className="mx-auto block h-40 w-full select-none object-contain"
+                          draggable={false}
+                        />
                       </div>
-                    )}
 
-                    <p className="text-sm leading-6 text-slate-700">
-                      {selectedDesc}
-                    </p>
+                      <p className="mt-2 text-center text-[11px] font-mono text-slate-500">
+                        {selectedCardId}
+                      </p>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={handleUseSelected}
-                      disabled={
-                        isBlocked ||
-                        (selectedCardId === 'atk_shoot' &&
-                          !!shootTargets.length &&
-                          !shootTargetId)
-                      }
-                      className={[
-                        'mt-4 w-full rounded-2xl px-4 py-3 text-base font-bold transition',
-                        isBlocked
-                          ? 'bg-slate-100 text-slate-400'
-                          : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]',
-                      ].join(' ')}
-                    >
-                      使用
-                    </button>
+                    <div className="px-4 pb-4 pt-2">
+                      {selectedCardId === 'atk_shoot' && (
+                        <div className="mb-3 rounded-xl bg-slate-50 p-3">
+                          <p className="text-xs font-semibold text-slate-700">
+                            狙い撃ち：対象プレイヤー
+                          </p>
+                          <div className="mt-2">
+                            <select
+                              className="w-full rounded-md border bg-white px-3 py-2 text-sm"
+                              value={shootTargetId}
+                              onChange={(e) => setShootTargetId(e.target.value)}
+                              disabled={isBlocked || shootTargets.length === 0}
+                            >
+                              <option value="">選択してください</option>
+                              {shootTargets.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <p className="mt-2 text-xs text-slate-500">
+                            ※未選択の場合、狙い撃ちは実行できません。
+                          </p>
+                        </div>
+                      )}
+
+                      <p className="text-sm leading-6 text-slate-700">
+                        {selectedDesc}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={handleUseSelected}
+                        disabled={
+                          isBlocked ||
+                          (selectedCardId === 'atk_shoot' &&
+                            !!shootTargets.length &&
+                            !shootTargetId)
+                        }
+                        className={[
+                          'mt-4 w-full rounded-2xl px-4 py-3 text-base font-bold transition',
+                          isBlocked
+                            ? 'bg-slate-100 text-slate-400'
+                            : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]',
+                        ].join(' ')}
+                      >
+                        使用
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* 現在の最終杯数（カード選択の参考用） */}
-      <section className="rounded-2xl border bg-white/80 p-3 shadow-sm">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-800 text-left">
-            現在の最終杯数
-          </p>
-          <p className="text-[11px] text-slate-500">
-            {game.currentDrinks.length > 0 ? 'Roll済' : '未Roll'}
-          </p>
-        </div>
-
-        {players.length === 0 ? (
-          <div className="mt-2 text-sm text-slate-600 text-left">
-            プレイヤーがいません。
+                )}
+              </>
+            )}
           </div>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {players.map((p) => {
-              const final = getFinalDrink(p.id)
+        </section>
 
-              // 操作中プレイヤー強調
-              const isPhase = p.id === phasePlayer?.id
+        {/* 現在の最終杯数（カード選択の参考用） */}
+        <section className="rounded-2xl border bg-white/80 p-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-800 text-left">
+              現在の最終杯数
+            </p>
+            <p className="text-[11px] text-slate-500">
+              {game.currentDrinks.length > 0 ? 'Roll済' : '未Roll'}
+            </p>
+          </div>
 
-              // 杯数で色分け（0-2: emerald / 3-4: amber / 5+: rose）
-              const drinkPillClass =
-                final == null
-                  ? 'bg-slate-200 text-slate-600'
-                  : final <= 2
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : final <= 4
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-rose-100 text-rose-800'
+          {players.length === 0 ? (
+            <div className="mt-2 text-sm text-slate-600 text-left">
+              プレイヤーがいません。
+            </div>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {players.map((p) => {
+                const final = getFinalDrink(p.id)
+                const isPhase = p.id === phasePlayer?.id
 
-              // 行の背景/枠（操作中のみ強調）
-              const rowClass = isPhase
-                ? 'bg-sky-50/70 ring-1 ring-sky-200'
-                : 'bg-slate-50'
+                const drinkPillClass =
+                  final == null
+                    ? 'bg-slate-200 text-slate-600'
+                    : final <= 2
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : final <= 4
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-rose-100 text-rose-800'
 
-              return (
-                <li
-                  key={p.id}
-                  className={[
-                    'flex items-center justify-between rounded-xl px-3 py-2',
-                    rowClass,
-                  ].join(' ')}
-                >
-                  {/* 左：名前/Li（左寄せ固定） */}
-                  <div className="min-w-0 text-left">
-                    <p className="truncate text-sm font-medium text-slate-900">
-                      {p.name}
-                      {isPhase && (
-                        <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                          操作中
+                const rowClass = isPhase
+                  ? 'bg-sky-50/70 ring-1 ring-sky-200'
+                  : 'bg-slate-50'
+
+                return (
+                  <li
+                    key={p.id}
+                    className={[
+                      'flex items-center justify-between rounded-xl px-3 py-2',
+                      rowClass,
+                    ].join(' ')}
+                  >
+                    <div className="min-w-0 text-left">
+                      <p className="truncate text-sm font-medium text-slate-900">
+                        {p.name}
+                        {isPhase && (
+                          <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                            操作中
+                          </span>
+                        )}
+                        {p.id === activePlayer?.id && (
+                          <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                            代表
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        Li: {p.Li}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      {final == null ? (
+                        <span
+                          className={[
+                            'rounded-full px-3 py-1 text-[11px] font-semibold',
+                            drinkPillClass,
+                          ].join(' ')}
+                        >
+                          ---
+                        </span>
+                      ) : (
+                        <span
+                          className={[
+                            'rounded-full px-3 py-1 text-[12px] font-extrabold',
+                            drinkPillClass,
+                          ].join(' ')}
+                        >
+                          {final}杯
                         </span>
                       )}
-                      {p.id === activePlayer?.id && (
-                        <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                          代表
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      Li: {p.Li}
-                    </p>
-                  </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
 
-                  {/* 右：杯数ピル */}
-                  <div className="shrink-0 text-right">
-                    {final == null ? (
-                      <span
-                        className={[
-                          'rounded-full px-3 py-1 text-[11px] font-semibold',
-                          drinkPillClass,
-                        ].join(' ')}
-                      >
-                        ---
-                      </span>
-                    ) : (
-                      <span
-                        className={[
-                          'rounded-full px-3 py-1 text-[12px] font-extrabold',
-                          drinkPillClass,
-                        ].join(' ')}
-                      >
-                        {final}杯
-                      </span>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+          {game.currentDrinks.length === 0 && (
+            <p className="mt-2 text-[11px] text-slate-500 text-left">
+              ※ まだ杯数が抽選されていません（Rollフェーズで抽選すると表示されます）。
+            </p>
+          )}
+        </section>
 
-        {game.currentDrinks.length === 0 && (
-          <p className="mt-2 text-[11px] text-slate-500 text-left">
-            ※ まだ杯数が抽選されていません（Rollフェーズで抽選すると表示されます）。
-          </p>
-        )}
-      </section>
-    </div>
+        <StickyNextBar onNext={proceedPhase} disabled={!canNext} hint={nextHint} />
+      </div>
+    </PageShell>
   )
 }

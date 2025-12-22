@@ -1,36 +1,24 @@
 import { useMemo } from 'react'
 import { useGameStore } from '@/store/gameStore'
+import { PageShell } from '@/components/layout/PageShell'
+import { StickyNextBar } from '@/components/layout/StickyNextBar'
 
 function finalTheme(final: number) {
-  // RollPage に合わせたテーマ
   // 0: セーフ（緑） / 1-2: ライト（青） / 3-4: ハード（黄） / 5+: デンジャー（赤）
   if (final <= 0) {
-    return {
-      accentText: 'text-emerald-700',
-      glow: 'bg-emerald-300/35',
-    }
+    return { accentText: 'text-emerald-700', glow: 'bg-emerald-300/35' }
   }
   if (final <= 2) {
-    return {
-      accentText: 'text-sky-700',
-      glow: 'bg-sky-300/35',
-    }
+    return { accentText: 'text-sky-700', glow: 'bg-sky-300/35' }
   }
   if (final <= 4) {
-    return {
-      accentText: 'text-amber-800',
-      glow: 'bg-amber-300/45',
-    }
+    return { accentText: 'text-amber-800', glow: 'bg-amber-300/45' }
   }
-  return {
-    accentText: 'text-red-900',
-    glow: 'bg-red-400/45',
-  }
+  return { accentText: 'text-red-900', glow: 'bg-red-400/45' }
 }
 
 export default function ProgressPage() {
-  const { game, players } = useGameStore()
-
+  const { game, players, proceedPhase } = useGameStore()
   const activePlayer = players[game.activePlayerIndex] ?? null
 
   const drinkMap = useMemo(() => {
@@ -45,92 +33,80 @@ export default function ProgressPage() {
   const hasDrinks = (game.currentDrinks?.length ?? 0) > 0
 
   return (
-    <div className="flex min-h-full flex-col gap-5 px-4 pt-4 pb-6">
-      {/* Header */}
-      <header className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1 text-left">
-            <p className="text-[11px] font-semibold text-sky-500">
-              STEP 7 / Drink Resut
+    <PageShell
+      step="STEP 7 / Progress"
+      title="成長判定"
+      description="このターンの最終杯数（サマリ）を確認して、結果画面へ進みます。"
+      rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
+    >
+      <div className="flex min-h-full flex-col gap-5">
+        {!hasDrinks && (
+          <div className="w-full max-w-[520px] px-1">
+            <p className="text-left text-sm leading-relaxed text-slate-700">
+              まだ杯数が確定していません。Roll フェーズで抽選してください。
             </p>
-            <h1 className="text-lg font-bold text-slate-900">Drink Resut</h1>
           </div>
+        )}
 
-          {activePlayer && (
-            <div className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-white">
-              代表: {activePlayer.name}
-            </div>
-          )}
-        </div>
+        {hasDrinks && (
+          <section className="w-full">
+            <div className="flex flex-col">
+              {players.map((p, idx) => {
+                const final = drinkMap.get(p.id) ?? 0
+                const theme = finalTheme(final)
 
-        <p className="text-left text-xs leading-relaxed text-slate-600">
-          このターンの最終杯数のみを表示します。
-        </p>
-      </header>
+                return (
+                  <div key={p.id}>
+                    {idx !== 0 && <div className="h-6" />}
 
-      {/* Content */}
-      {!hasDrinks && (
-        <div className="w-full max-w-[520px] px-1">
-          <p className="text-left text-sm leading-relaxed text-slate-700">
-            まだ杯数が確定していません。Roll フェーズで抽選してください。
-          </p>
-        </div>
-      )}
+                    <div className="relative">
+                      <div
+                        className={[
+                          'pointer-events-none absolute inset-0 rounded-[24px] blur-xl',
+                          theme.glow,
+                        ].join(' ')}
+                      />
 
-      {hasDrinks && (
-        <section className="w-full">
-          <div className="flex flex-col">
-            {players.map((p, idx) => {
-              const final = drinkMap.get(p.id) ?? 0
-              const theme = finalTheme(final)
+                      <div className="relative flex items-center justify-between px-2 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {p.name}
+                            {p.id === activePlayer?.id && (
+                              <span className="ml-2 align-middle rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                                代表
+                              </span>
+                            )}
+                          </p>
+                        </div>
 
-              return (
-                <div key={p.id}>
-                  {/* 色を塗らないスペース（境界を明確化） */}
-                  {idx !== 0 && <div className="h-6" />}
-
-                  <div className="relative">
-                    {/* glow は「行の内側だけ」に限定（間の余白に滲ませない） */}
-                    <div
-                      className={[
-                        'pointer-events-none absolute inset-0 rounded-[24px] blur-xl',
-                        theme.glow,
-                      ].join(' ')}
-                    />
-
-                    <div className="relative flex items-center justify-between px-2 py-3">
-                      {/* 左：名前 */}
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {p.name}
-                          {p.id === activePlayer?.id && (
-                            <span className="ml-2 align-middle rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                              代表
-                            </span>
-                          )}
-                        </p>
-                      </div>
-
-                      {/* 右：最終杯数（大きく） */}
-                      <div className="flex shrink-0 items-end gap-2">
-                        <span
-                          className={[
-                            'text-5xl font-black tracking-tight',
-                            theme.accentText,
-                          ].join(' ')}
-                        >
-                          {final}
-                        </span>
-                        <span className="pb-1 text-sm font-bold text-slate-600">杯</span>
+                        <div className="flex shrink-0 items-end gap-2">
+                          <span
+                            className={[
+                              'text-5xl font-black tracking-tight',
+                              theme.accentText,
+                            ].join(' ')}
+                          >
+                            {final}
+                          </span>
+                          <span className="pb-1 text-sm font-bold text-slate-600">
+                            杯
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-    </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        <StickyNextBar
+          onNext={proceedPhase}
+          disabled={!hasDrinks}
+          hint={!hasDrinks ? '※ まだ杯数が確定していません。' : undefined}
+        />
+      </div>
+    </PageShell>
   )
 }

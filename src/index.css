@@ -45,25 +45,6 @@ h1 {
   line-height: 1.1;
 }
 
-/* button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-} */
-
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -76,8 +57,6 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
-
-
 
 @layer base {
   :root {
@@ -168,3 +147,134 @@ body {
     linear-gradient(to bottom, #e0f2ff 0%, #f7f9ff 50%, #dbeafe 100%);
   background-attachment: fixed;
 }
+
+/* ---- page transition ---- */
+@keyframes pageFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageFadeUp 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}
+
+@layer components {
+  /* --- Tap base (all interactive buttons) --- */
+  .tap-base {
+    @apply transition
+      duration-150
+      ease-out
+      select-none
+      outline-none
+      focus-visible:ring-2
+      focus-visible:ring-sky-400
+      focus-visible:ring-offset-2
+      focus-visible:ring-offset-transparent
+      active:scale-[0.99]
+      disabled:cursor-not-allowed;
+  }
+
+  /* Primary CTA (emerald) */
+  .btn-cta {
+    @apply tap-base
+      w-full
+      rounded-2xl
+      px-4
+      py-3
+      text-base
+      font-bold
+      text-white
+      bg-emerald-600
+      hover:bg-emerald-700
+      active:bg-emerald-800
+      shadow-md
+      shadow-emerald-200/60
+      disabled:bg-emerald-200
+      disabled:text-emerald-400
+      disabled:shadow-none;
+  }
+
+  /* Dark primary (for "使用" etc.) */
+  .btn-dark {
+    @apply tap-base
+      w-full
+      rounded-2xl
+      px-4
+      py-3
+      text-base
+      font-bold
+      text-white
+      bg-slate-900
+      hover:bg-slate-800
+      active:bg-slate-950
+      shadow-md
+      shadow-slate-300/40
+      disabled:bg-slate-100
+      disabled:text-slate-400
+      disabled:shadow-none;
+  }
+
+  /* Icon main action (roulette / dice / drink / draw card) */
+  .tap-icon {
+    @apply tap-base
+      rounded-[28px]
+      hover:scale-[1.02]
+      active:scale-95
+      disabled:opacity-70
+      disabled:active:scale-100;
+  }
+
+  /* Small chip / pill button */
+  .tap-chip {
+    @apply tap-base
+      rounded-full
+      px-3
+      py-1
+      text-[11px]
+      font-semibold;
+  }
+
+  /* ===== Footer container ===== */
+  .app-footer {
+    @apply fixed bottom-0 left-1/2 z-10 w-full -translate-x-1/2
+      bg-white/95
+      px-3 pt-3
+      shadow-[0_-4px_12px_rgba(15,23,42,0.12)];
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+
+  /* ===== Footer button (secondary) ===== */
+  .footer-btn {
+    @apply tap-base
+      w-full
+      rounded-xl
+      px-3 py-2
+      text-xs font-medium
+      bg-slate-100 text-slate-800
+      hover:bg-slate-200
+      active:bg-slate-300;
+  }
+
+  /* Footer grid */
+  .footer-grid-1 {
+    @apply grid grid-cols-1 gap-2;
+  }
+
+  .footer-grid-2 {
+    @apply grid grid-cols-2 gap-2;
+  }
+}
+
+

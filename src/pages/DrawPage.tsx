@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { getCardById } from '@/cards'
+import { PageShell } from '@/components/layout/PageShell'
+import { StickyNextBar } from '@/components/layout/StickyNextBar'
 
 // ダミー画像（後で差し替え）
 import cardBackImg from '@/assets/card_draw_dummy.png'
@@ -21,7 +23,7 @@ function getCardImageSrc(cardId: string | null | undefined) {
 }
 
 export default function DrawPage() {
-  const { game, players, drawForDrawPhase } = useGameStore()
+  const { game, players, drawForDrawPhase, proceedPhase } = useGameStore()
 
   const activePlayer = players[game.activePlayerIndex] ?? null
 
@@ -35,7 +37,8 @@ export default function DrawPage() {
   }, [drawPlayer, game.drawnPlayerIds])
 
   const isHandFull =
-    !!drawPlayer && (drawPlayer.hand?.length ?? 0) >= (drawPlayer.handSizeMax ?? 0)
+    !!drawPlayer &&
+    (drawPlayer.hand?.length ?? 0) >= (drawPlayer.handSizeMax ?? 0)
 
   // ★追加：選択中の手札（index管理：重複カードも区別可能）
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null)
@@ -84,205 +87,195 @@ export default function DrawPage() {
 
   const ICON_SIZE = 220
 
-  return (
-    <div className="flex min-h-full flex-col">
-      {/* 背景は MainLayout 管轄：ページ内で背景指定しない */}
-      <div className="flex-1 px-4 pt-4 pb-6">
-        {/* Header */}
-        <header className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1 text-left">
-              <p className="text-[11px] font-semibold text-sky-500">STEP 5 / Draw</p>
-              <h1 className="text-lg font-bold text-slate-900">カードを引こう</h1>
-            </div>
+  const canNext = !!drawPlayer && (drawnThisPlayer || isHandFull)
+  const nextHint = !drawPlayer
+    ? '※ プレイヤーが見つかりません。'
+    : isHandFull
+      ? '※ 手札が上限のため、ドローせず次へ進めます。'
+      : !drawnThisPlayer
+        ? '※ まずカードをタップしてドローしてください（このターン1回だけ）。'
+        : undefined
 
-            {activePlayer && (
-              <div className="rounded-full bg-slate-900 px-3 py-1 text-[11px] text-white">
-                代表: {activePlayer.name}
-              </div>
-            )}
+  return (
+    <PageShell
+      step="STEP 5 / Draw"
+      title="カードを引こう"
+      description="カードをタップして、このプレイヤーのカードをドローします（このターン1回だけ）。ドロー後は「直近ドロー」が大きく表示され、手札アイコンをタップすると表示カードを切り替えられます。"
+      rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
+    >
+      <div className="flex flex-col items-center justify-center gap-5">
+        {/* 対象プレイヤー（箱を作らず、行だけ） */}
+        <div className="w-full max-w-[560px]">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-slate-500">
+              ドローするプレイヤー
+            </p>
+            <span className="rounded-full bg-slate-900/10 px-3 py-1 text-[11px] font-semibold text-slate-700">
+              {isHandFull ? '手札上限' : drawnThisPlayer ? 'ドロー済' : '未ドロー'}
+            </span>
           </div>
 
-          {/* 説明文：折り返し＆左寄せ（全体方針） */}
-          <p className="text-left text-xs leading-relaxed text-slate-600">
-            カードをタップして、このプレイヤーのカードをドローします（このターン1回だけ）。
-            ドロー後は「直近ドロー」が大きく表示され、手札アイコンをタップすると表示カードを切り替えられます。
-          </p>
-        </header>
-
-        {/* Main：主役を中央 */}
-        <main className="mt-6 flex flex-col items-center justify-center gap-5">
-          {/* 対象プレイヤー（箱を作らず、行だけ） */}
-          <div className="w-full max-w-[560px]">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-slate-500">ドローするプレイヤー</p>
-              <span className="rounded-full bg-slate-900/10 px-3 py-1 text-[11px] font-semibold text-slate-700">
-                {isHandFull ? '手札上限' : drawnThisPlayer ? 'ドロー済' : '未ドロー'}
-              </span>
-            </div>
-
-            <div className="mt-2 flex items-end justify-between">
-              <p className="text-xl font-extrabold text-slate-900">
-                {drawPlayer ? drawPlayer.name : '（プレイヤー未設定）'}
+          <div className="mt-2 flex items-end justify-between">
+            <p className="text-xl font-extrabold text-slate-900">
+              {drawPlayer ? drawPlayer.name : '（プレイヤー未設定）'}
+            </p>
+            {drawPlayer && (
+              <p className="text-[11px] font-semibold text-slate-500">
+                {drawPlayer.hand.length}/{drawPlayer.handSizeMax}
               </p>
-              {drawPlayer && (
-                <p className="text-[11px] font-semibold text-slate-500">
-                  {drawPlayer.hand.length}/{drawPlayer.handSizeMax}
+            )}
+          </div>
+        </div>
+
+        {/* 未ドロー：カード裏（タップでドロー） */}
+        {!drawnThisPlayer && (
+          <>
+            <button
+              type="button"
+              onClick={handleDraw}
+              disabled={game.phase !== 'draw' || isHandFull}
+              className="
+                group relative flex items-center justify-center
+                rounded-[28px]
+                transition-transform duration-150
+                hover:scale-[1.02] active:scale-95
+                disabled:cursor-default disabled:opacity-70
+                outline-none focus-visible:outline-none
+              "
+              style={{ width: ICON_SIZE, height: ICON_SIZE }}
+              aria-label="カードをドロー"
+            >
+              <div className="absolute inset-0 rounded-[28px] bg-white/35 blur-xl" />
+              <img
+                src={cardBackImg}
+                alt="カードドロー"
+                className="relative z-10 h-full w-full select-none object-contain"
+                draggable={false}
+              />
+            </button>
+
+            <div className="w-full max-w-[420px] px-1">
+              <p className="text-left text-xs leading-relaxed text-slate-600">
+                まだドローしていません。カードをタップしてドローしてください。
+              </p>
+              {isHandFull && (
+                <p className="mt-2 text-left text-xs leading-relaxed text-slate-600">
+                  手札が上限のため、これ以上カードを引けません。
                 </p>
               )}
             </div>
-          </div>
+          </>
+        )}
 
-          {/* 未ドロー：カード裏（タップでドロー） */}
-          {!drawnThisPlayer && (
-            <>
-              <button
-                type="button"
-                onClick={handleDraw}
-                disabled={game.phase !== 'draw' || isHandFull}
-                className="
-                  group relative flex items-center justify-center
-                  rounded-[28px]
-                  transition-transform duration-150
-                  hover:scale-[1.02] active:scale-95
-                  disabled:cursor-default disabled:opacity-70
-                  outline-none focus-visible:outline-none
-                "
-                style={{ width: ICON_SIZE, height: ICON_SIZE }}
-                aria-label="カードをドロー"
-              >
-                <div className="absolute inset-0 rounded-[28px] bg-white/35 blur-xl" />
-                <img
-                  src={cardBackImg}
-                  alt="カードドロー"
-                  className="relative z-10 h-full w-full select-none object-contain"
-                  draggable={false}
-                />
-              </button>
+        {/* ドロー済：選択中カードを主役表示（手札タップで切替） */}
+        {drawnThisPlayer && focusedCard && (
+          <div
+            className={[
+              'w-full max-w-[560px]',
+              'transition-all duration-300 ease-out',
+              showFocus
+                ? 'opacity-100 translate-y-0 scale-100'
+                : 'opacity-0 translate-y-2 scale-[0.98]',
+            ].join(' ')}
+          >
+            <p className="text-center text-[11px] font-semibold text-slate-500">
+              {drawPlayer && selectedHandIndex === drawPlayer.hand.length - 1
+                ? '直近ドロー'
+                : '選択中のカード'}
+            </p>
 
-              <div className="w-full max-w-[420px] px-1">
-                <p className="text-left text-xs leading-relaxed text-slate-600">
-                  まだドローしていません。カードをタップしてドローしてください。
-                </p>
-                {isHandFull && (
-                  <p className="mt-2 text-left text-xs leading-relaxed text-slate-600">
-                    手札が上限のため、これ以上カードを引けません。
-                  </p>
-                )}
+            <div className="mt-3 flex flex-col items-center">
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-[28px] bg-white/35 blur-xl" />
+                <div className="relative h-[240px] w-[240px] overflow-hidden rounded-[28px]">
+                  <img
+                    src={getCardImageSrc(focusedCardId)}
+                    alt="カードイラスト"
+                    className="h-full w-full select-none object-cover"
+                    draggable={false}
+                  />
+                </div>
               </div>
-            </>
-          )}
 
-          {/* ドロー済：選択中カードを主役表示（手札タップで切替） */}
-          {drawnThisPlayer && focusedCard && (
-            <div
-              className={[
-                'w-full max-w-[560px]',
-                'transition-all duration-300 ease-out',
-                showFocus
-                  ? 'opacity-100 translate-y-0 scale-100'
-                  : 'opacity-0 translate-y-2 scale-[0.98]',
-              ].join(' ')}
-            >
-              <p className="text-center text-[11px] font-semibold text-slate-500">
-                {drawPlayer &&
-                selectedHandIndex === drawPlayer.hand.length - 1
-                  ? '直近ドロー'
-                  : '選択中のカード'}
+              <p className="mt-5 text-center text-2xl font-extrabold text-slate-900">
+                {focusedCard.name}
               </p>
 
-              {/* カードUI（UseCardsPage相当） */}
-              <div className="mt-3 flex flex-col items-center">
-                {/* 画像（大きめ） */}
-                <div className="relative">
-                  <div className="absolute -inset-2 rounded-[28px] bg-white/35 blur-xl" />
-                  <div className="relative h-[240px] w-[240px] overflow-hidden rounded-[28px]">
+              {focusedCard.description && (
+                <div className="mt-3 w-full max-w-[420px] px-1">
+                  <p className="text-left text-sm leading-relaxed text-slate-700">
+                    {focusedCard.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 手札サムネ（タップでメイン表示を切替） */}
+        {drawPlayer && drawPlayer.hand.length > 0 && (
+          <div className="w-full max-w-[560px]">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-slate-500">手札</p>
+              <p className="text-[11px] text-slate-500">
+                {drawPlayer.hand.length}/{drawPlayer.handSizeMax}
+              </p>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-3">
+              {drawPlayer.hand.map((cid, i) => {
+                const c = getCardById(cid)
+                const isLatest = i === drawPlayer.hand.length - 1
+                const isSelected = i === selectedHandIndex
+
+                return (
+                  <button
+                    key={`${cid}-${i}`}
+                    type="button"
+                    onClick={() => setSelectedHandIndex(i)}
+                    className={[
+                      'relative h-[78px] w-[58px] overflow-hidden rounded-xl',
+                      'transition-transform duration-200',
+                      isSelected ? 'scale-110' : isLatest ? 'scale-105' : '',
+                      'outline-none focus-visible:outline-none',
+                    ].join(' ')}
+                    style={{
+                      transform: isSelected
+                        ? 'translateY(-3px)'
+                        : isLatest
+                          ? 'translateY(-2px)'
+                          : undefined,
+                    }}
+                    aria-label={c?.name ?? cid}
+                    title={c?.name ?? cid}
+                  >
                     <img
-                      src={getCardImageSrc(focusedCardId)}
-                      alt="カードイラスト"
+                      src={getCardImageSrc(cid)}
+                      alt={c?.name ?? 'カード'}
                       className="h-full w-full select-none object-cover"
                       draggable={false}
                     />
-                  </div>
-                </div>
 
-                {/* テキスト（カード名：中央、説明：左寄せ） */}
-                <p className="mt-5 text-center text-2xl font-extrabold text-slate-900">
-                  {focusedCard.name}
-                </p>
+                    {isSelected && (
+                      <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[0_0_0_3px_rgba(59,130,246,0.45)]" />
+                    )}
 
-                {focusedCard.description && (
-                  <div className="mt-3 w-full max-w-[420px] px-1">
-                    <p className="text-left text-sm leading-relaxed text-slate-700">
-                      {focusedCard.description}
-                    </p>
-                  </div>
-                )}
-              </div>
+                    {!isSelected && isLatest && (
+                      <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[0_0_0_2px_rgba(59,130,246,0.25)]" />
+                    )}
+                  </button>
+                )
+              })}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* 手札サムネ（タップでメイン表示を切替。最新は初期選択） */}
-          {drawPlayer && drawPlayer.hand.length > 0 && (
-            <div className="w-full max-w-[560px]">
-              <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold text-slate-500">手札</p>
-                <p className="text-[11px] text-slate-500">
-                  {drawPlayer.hand.length}/{drawPlayer.handSizeMax}
-                </p>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-3">
-                {drawPlayer.hand.map((cid, i) => {
-                  const c = getCardById(cid)
-                  const isLatest = i === drawPlayer.hand.length - 1
-                  const isSelected = i === selectedHandIndex
-
-                  return (
-                    <button
-                      key={`${cid}-${i}`}
-                      type="button"
-                      onClick={() => setSelectedHandIndex(i)}
-                      className={[
-                        'relative h-[78px] w-[58px] overflow-hidden rounded-xl',
-                        'transition-transform duration-200',
-                        isSelected ? 'scale-110' : isLatest ? 'scale-105' : '',
-                        'outline-none focus-visible:outline-none',
-                      ].join(' ')}
-                      style={{
-                        transform: isSelected
-                          ? 'translateY(-3px)'
-                          : isLatest
-                            ? 'translateY(-2px)'
-                            : undefined,
-                      }}
-                      aria-label={c?.name ?? cid}
-                      title={c?.name ?? cid}
-                    >
-                      <img
-                        src={getCardImageSrc(cid)}
-                        alt={c?.name ?? 'カード'}
-                        className="h-full w-full select-none object-cover"
-                        draggable={false}
-                      />
-
-                      {/* 選択中は明確に光らせる（枠線ではなく光） */}
-                      {isSelected && (
-                        <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[0_0_0_3px_rgba(59,130,246,0.45)]" />
-                      )}
-
-                      {/* 最新カード（未選択時）は控えめ */}
-                      {!isSelected && isLatest && (
-                        <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[0_0_0_2px_rgba(59,130,246,0.25)]" />
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </main>
+        <StickyNextBar
+          onNext={proceedPhase}
+          disabled={!canNext}
+          hint={nextHint}
+        />
       </div>
-    </div>
+    </PageShell>
   )
 }

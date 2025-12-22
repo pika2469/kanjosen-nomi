@@ -1,6 +1,6 @@
 // src/components/layout/MainLayout.tsx
 import React from 'react'
-import type { Direction } from '@/types/game'
+// import type { Direction } from '@/types/game'
 import { useGameStore } from '@/store/gameStore'
 
 type MainLayoutProps = {
@@ -14,16 +14,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 }) => {
   const {
     ui,
-    game,
-    players,
+    // game,
+    // players,
     setPage,
-    spinMood,
+    // spinMood,
     proceedPhase,
-    setPhase,
-    runStationPhase,
-    runRollPhaseForPlayer,
-    setPhasePlayerIndex,
-    drawCard,
+    // setPhase,
+    // runStationPhase,
+    // runRollPhaseForPlayer,
+    // setPhasePlayerIndex,
+    // drawCard,
   } = useGameStore()
 
   const isActive = (page: string) => ui.currentPage === page
@@ -47,115 +47,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const isHomePage = page === 'home'
   const showFooter = !isHomePage
 
-  // ★FAB(次へ)は「実際の進行フェーズ」のみに限定
-  const isPhaseProgressPage = [
-    'mood',
-    'station',
-    'stationEvent',
-    'roll',
-    'draw',
-    'useCards',
-    'progress',
-    'result',
-  ].includes(page)
-
   // ★ ここをゲームロジック込みの「進む」に差し替え（現行踏襲）
   const handleGameNext = () => {
-    const current = ui.currentPage
-
-    switch (current) {
-      case 'mood': {
-        if (!game.mood) {
-          spinMood()
-        }
-        proceedPhase() // phase: mood -> station
-        setPage('station')
-        break
-      }
-
-      case 'station': {
-        if (game.lastStationSteps == null || game.lastStationDirection == null) {
-          const steps = Math.floor(Math.random() * 6) + 1
-          const direction: Direction = Math.random() < 0.5 ? 'cw' : 'ccw'
-          runStationPhase(steps, direction)
-        }
-
-        setPhase('stationEvent')
-        setPage('stationEvent')
-        break
-      }
-
-      case 'stationEvent': {
-        proceedPhase() // phase: stationEvent -> roll
-        setPage('roll')
-        break
-      }
-
-      case 'roll': {
-        const idx = game.phasePlayerIndex ?? 0
-        const p = players[idx]
-        if (!p) break
-
-        const rolled = game.currentDrinks.some((d) => d.playerId === p.id)
-        if (!rolled) {
-          runRollPhaseForPlayer(idx)
-        }
-
-        setPhase('draw')
-        setPhasePlayerIndex(idx)
-        setPage('draw')
-        break
-      }
-
-      case 'draw': {
-        const idx = game.phasePlayerIndex ?? 0
-        const p = players[idx]
-        if (!p) break
-
-        const alreadyDrawn = (game.drawnPlayerIds ?? []).includes(p.id)
-
-        if (!alreadyDrawn) {
-          drawCard(p.id)
-        }
-
-        if (idx + 1 < players.length) {
-          setPhase('roll')
-          setPhasePlayerIndex(idx + 1)
-          setPage('roll')
-        } else {
-          setPhase('useCards')
-          setPhasePlayerIndex(0)
-          setPage('useCards')
-        }
-
-        break
-      }
-
-      case 'useCards': {
-        const idx = game.phasePlayerIndex ?? 0
-        const count = players.length
-        const isLastPlayer = idx + 1 >= count
-
-        proceedPhase() // phase: useCards -> useCards(次の人) or progress
-        setPage(isLastPlayer ? 'progress' : 'useCards')
-        break
-      }
-
-      case 'progress': {
-        proceedPhase() // phase: progress -> result（内部で runProgressPhase）
-        setPage('result')
-        break
-      }
-
-      case 'result': {
-        proceedPhase() // phase: result -> mood（内部で nextTurn）
-        setPage('mood')
-        break
-      }
-
-      default:
-        break
-    }
+    proceedPhase()
   }
 
   return (
@@ -176,7 +70,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           <div className="text-xl font-bold text-slate-800">
             環状線飲みアプリ
           </div>
-          <div className="mt-1 text-[11px] text-slate-400">ver 1.6</div>
+          <div className="mt-1 text-[11px] text-slate-400">ver 1.7</div>
         </header>
 
         {/* メインコンテンツ */}
@@ -189,26 +83,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             showFooter ? 'pb-[calc(var(--footer-h)+env(safe-area-inset-bottom))]' : 'pb-0',
             ].join(' ')}
           >
-            {children}
+            {/* <div key={ui.currentPage} className="page-enter"> */}
+              {children}
+            {/* </div> */}
           </main>
-
-
-        {/* ゲーム進行用FAB（フッター外） */}
-        {isPhaseProgressPage && (
-          <button
-            type="button"
-            onClick={handleGameNext}
-            className="
-              fixed right-4 z-20
-              bottom-[calc(var(--footer-h)+16px)]
-              rounded-full bg-green-600 px-5 py-3 text-sm font-semibold text-white
-              shadow-lg transition
-              hover:bg-green-700 active:scale-95
-            "
-          >
-            次へ
-          </button>
-        )}
 
         {/* 下部フッター */}
         {showFooter && (
