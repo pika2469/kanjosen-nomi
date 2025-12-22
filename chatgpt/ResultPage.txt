@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { STATION_ORDER, findStation } from '@/stations'
-import type { StationId } from '@/types/game'
+import type { StationId, DrinkResult } from '@/types/game'
 import { calcTurnXpFromDrinks } from '@/xpLogic'
 
 /* ===== XP 表示用（暫定：既存仕様に合わせた閾値） ===== */
@@ -37,6 +37,25 @@ export function ResultPage() {
   const { game, players, setPage, nextTurn } = useGameStore()
 
   const [showHistory, setShowHistory] = useState(false)
+  const [showDrinkTrend, setShowDrinkTrend] = useState(false)
+
+  const activePlayer = players[game.activePlayerIndex] ?? null
+  const hasDrinks = game.currentDrinks.length > 0
+
+  // 履歴 + 今ターンの結果を合成
+  const mergedDrinkHistory = useMemo(() => {
+    const history = game.drinkHistory ?? []
+    const merged = hasDrinks
+      ? [...history, { turn: game.turn, drinks: game.currentDrinks }]
+      : [...history]
+    return merged.slice().sort((a, b) => a.turn - b.turn)
+  }, [game.drinkHistory, hasDrinks, game.turn, game.currentDrinks])
+
+  const getFinalAt = (turn: number, playerId: string) => {
+    const row = mergedDrinkHistory.find((h) => h.turn === turn)
+    const r = row?.drinks.find((d: DrinkResult) => d.playerId === playerId)
+    return r ? (r.final ?? 0) : null
+  }
 
   // ★ マップ中央に表示する選択駅（StationIdに合わせる）
   const [selectedStationId, setSelectedStationId] = useState<StationId | null>(
@@ -48,9 +67,6 @@ export function ResultPage() {
 
   // ★ デバッグ表示
   const [showDebug, setShowDebug] = useState(false)
-
-  const activePlayer = players[game.activePlayerIndex] ?? null
-  const hasDrinks = game.currentDrinks.length > 0
 
   const visitedSet = useMemo(
     () => new Set(game.visitedStations),
@@ -278,47 +294,65 @@ export function ResultPage() {
 
       {/* ===== 今回の最終杯数 ===== */}
       <section className="rounded-3xl bg-white/70 px-4 py-3 shadow-sm ring-1 ring-black/5">
-        <p className="mb-2 text-xs font-semibold text-slate-500">
-          今回の最終杯数
-        </p>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-semibold text-slate-500">杯数推移</p>
+          <button
+            type="button"
+            onClick={() => setShowDrinkTrend((v) => !v)}
+            className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+          >
+            {showDrinkTrend ? '非表示' : '表示'}
+          </button>
+        </div>
 
-        {!hasDrinks ? (
-          <p className="text-xs text-slate-600">まだ杯数が抽選されていません。</p>
+        {mergedDrinkHistory.length === 0 ? (
+          <p className="mt-2 text-xs text-slate-500">まだ履歴がありません。</p>
         ) : (
-          <ul className="space-y-2">
-            {players.map((p) => {
-              const r = getDrinkResult(p.id)
-              return (
-                <li key={p.id} className="rounded-2xl bg-white px-3 py-2">
+          showDrinkTrend && (
+            <div className="space-y-3">
+              {players.map((p) => (
+                <div key={p.id} className="rounded-2xl bg-slate-50 px-4 py-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">
-                      {p.name}
-                      {p.id === activePlayer?.id && (
-                        <span className="ml-2 rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                          代表
-                        </span>
-                      )}
-                    </span>
-
-                    {r ? (
-                      <span
-                        className={[
-                          'rounded-full px-3 py-1 text-[12px] font-extrabold',
-                          drinkPillClass(r.final),
-                        ].join(' ')}
-                      >
-                        {r.final}杯
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-extrabold text-slate-500">
-                        ---
+                    <p className="text-xs font-semibold text-slate-600">{p.name}</p>
+                    {p.id === activePlayer?.id && (
+                      <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                        代表
                       </span>
                     )}
                   </div>
-                </li>
-              )
-            })}
-          </ul>
+
+                  <ul className="mt-2 space-y-1">
+                    {mergedDrinkHistory.map((h) => {
+                      const v = getFinalAt(h.turn, p.id)
+                      return (
+                        <li
+                          key={`${p.id}-turn-${h.turn}`}
+                          className="flex items-center justify-between rounded-xl bg-white px-3 py-2"
+                        >
+                          <span className="text-[11px] text-slate-500">ターン {h.turn}</span>
+
+                          {v == null ? (
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-extrabold text-slate-500">
+                              ---
+                            </span>
+                          ) : (
+                            <span
+                              className={[
+                                'rounded-full px-3 py-1 text-[12px] font-extrabold',
+                                drinkPillClass(v),
+                              ].join(' ')}
+                            >
+                              {v}杯
+                            </span>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )
         )}
       </section>
 

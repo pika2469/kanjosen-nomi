@@ -176,7 +176,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           <div className="text-xl font-bold text-slate-800">
             環状線飲みアプリ
           </div>
-          <div className="mt-1 text-[11px] text-slate-400">ver 1.7</div>
+          <div className="mt-1 text-[11px] text-slate-400">ver 1.6</div>
         </header>
 
         {/* メインコンテンツ */}

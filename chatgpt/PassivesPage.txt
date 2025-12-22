@@ -1,0 +1,468 @@
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useGameStore } from '@/store/gameStore'
+import {
+  getPassivesByBranch,
+  hasPassive,
+  canUnlockPassive,
+  getPassiveId,
+  getPassiveIconSrc,
+} from '@/passives'
+import type { PassiveBranch, PassiveId, PassiveNode, Player } from '@/types/game'
+
+const BRANCHES: PassiveBranch[] = ['attack', 'safe', 'trick']
+
+const BRANCH_UI: Record<
+  PassiveBranch,
+  {
+    label: string
+    pillOn: string
+    pillOff: string
+    cardBg: string
+    cardRing: string
+    accentText: string
+    dotOwned: string
+    dotUnlockable: string
+    dotLocked: string
+    connectorOwned: string
+    connectorLocked: string
+  }
+> = {
+  attack: {
+    label: '攻撃',
+    pillOn: 'bg-rose-600 text-white',
+    pillOff: 'bg-rose-50 text-rose-700 hover:bg-rose-100',
+    cardBg: 'from-rose-50 to-white',
+    cardRing: 'ring-rose-100',
+    accentText: 'text-rose-700',
+    dotOwned: 'bg-rose-600',
+    dotUnlockable: 'bg-rose-300',
+    dotLocked: 'bg-slate-300',
+    connectorOwned: 'bg-rose-300',
+    connectorLocked: 'bg-slate-200',
+  },
+  safe: {
+    label: '防御',
+    pillOn: 'bg-emerald-600 text-white',
+    pillOff: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+    cardBg: 'from-emerald-50 to-white',
+    cardRing: 'ring-emerald-100',
+    accentText: 'text-emerald-700',
+    dotOwned: 'bg-emerald-600',
+    dotUnlockable: 'bg-emerald-300',
+    dotLocked: 'bg-slate-300',
+    connectorOwned: 'bg-emerald-300',
+    connectorLocked: 'bg-slate-200',
+  },
+  trick: {
+    label: '特殊',
+    pillOn: 'bg-violet-600 text-white',
+    pillOff: 'bg-violet-50 text-violet-700 hover:bg-violet-100',
+    cardBg: 'from-violet-50 to-white',
+    cardRing: 'ring-violet-100',
+    accentText: 'text-violet-700',
+    dotOwned: 'bg-violet-600',
+    dotUnlockable: 'bg-violet-300',
+    dotLocked: 'bg-slate-300',
+    connectorOwned: 'bg-violet-300',
+    connectorLocked: 'bg-slate-200',
+  },
+}
+
+function getLockReasons(player: Player, node: PassiveNode): string[] {
+  const reasons: string[] = []
+  if (hasPassive(player, node.id)) reasons.push('すでに習得済みです。')
+  if (player.sp < node.costSp) reasons.push(`SPが不足しています（必要: ${node.costSp}）。`)
+
+  const reqs = node.requires ?? []
+  const missing = reqs.filter((r) => !hasPassive(player, r))
+  if (missing.length > 0) reasons.push(`前提が未習得です（必要: ${missing.join(', ')}）。`)
+
+  if (!canUnlockPassive(player, node) && reasons.length === 0) {
+    reasons.push('習得条件を満たしていません。')
+  }
+  return reasons
+}
+
+function getTierLabel(branch: PassiveBranch, tier: number) {
+  const b = BRANCH_UI[branch].label
+  return `${b}Lv${tier}`
+}
+
+export function PassivesPages() {
+  const { players, setPage, unlockPassive, game } = useGameStore()
+
+  const activePlayer = players[game.activePlayerIndex] ?? null
+
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string>(
+    activePlayer?.id ?? (players[0]?.id ?? ''),
+  )
+  const selectedPlayer = useMemo(
+    () => players.find((p) => p.id === selectedPlayerId) ?? null,
+    [players, selectedPlayerId],
+  )
+
+  const [selectedBranch, setSelectedBranch] = useState<PassiveBranch>('attack')
+
+  const [selectedNodeId, setSelectedNodeId] = useState<PassiveId | null>(null)
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null
+    return getPassiveId(selectedNodeId)
+  }, [selectedNodeId])
+
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [feedback, setFeedback] = useState<string>('')
+
+  const nodes = useMemo(() => getPassivesByBranch(selectedBranch), [selectedBranch])
+  const branchTheme = BRANCH_UI[selectedBranch]
+
+  const handleTapNode = (id: PassiveId) => {
+    setSelectedNodeId(id)
+    setConfirmOpen(false)
+    setFeedback('')
+  }
+
+  const handleTryUnlock = () => {
+    if (!selectedPlayer || !selectedNode) return
+
+    if (hasPassive(selectedPlayer, selectedNode.id)) {
+      setFeedback('すでに習得済みです。')
+      return
+    }
+
+    if (!canUnlockPassive(selectedPlayer, selectedNode)) {
+      setFeedback(getLockReasons(selectedPlayer, selectedNode).join(' '))
+      return
+    }
+
+    setConfirmOpen(true)
+  }
+
+  const handleConfirmUnlock = () => {
+    if (!selectedPlayer || !selectedNode) return
+    unlockPassive(selectedPlayer.id, selectedNode.id)
+    setConfirmOpen(false)
+    setFeedback('習得しました。')
+  }
+
+  if (players.length === 0) {
+    return (
+      <div className="flex min-h-full flex-col gap-4">
+        <header className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold text-sky-500">Passive Tree</p>
+            <h1 className="text-lg font-bold text-slate-900">パッシブツリー</h1>
+          </div>
+          <p className="text-xs text-slate-500">
+            プレイヤーが登録されていません。ホームからプレイヤーを追加してください。
+          </p>
+        </header>
+
+        <Button variant="outline" onClick={() => setPage('home')}>
+          ホームへ戻る
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex min-h-full flex-col gap-3">
+      {/* Header */}
+      <header className="space-y-2">
+        <div className="space-y-1 text-left">
+          <p className="text-[11px] font-semibold text-sky-500">Passive Tree</p>
+          <h1 className="text-lg font-bold text-slate-900">パッシブツリー</h1>
+        </div>
+
+        <p className="text-left text-xs text-slate-500">
+          ノードをタップして詳細を確認し、SPを消費して習得します。
+        </p>
+      </header>
+
+      {/* Player section（人数表記は削除） */}
+      <section className="rounded-3xl bg-white/75 px-4 py-3 shadow-sm ring-1 ring-black/5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-slate-500">プレイヤー</p>
+
+          {selectedPlayer ? (
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700">
+              Lv {selectedPlayer.level} / XP {selectedPlayer.xp} / SP {selectedPlayer.sp}
+            </span>
+          ) : (
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700">
+              ---
+            </span>
+          )}
+        </div>
+
+        <div className="mt-2 flex flex-wrap gap-2">
+          {players.map((p) => {
+            const on = p.id === selectedPlayerId
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setSelectedPlayerId(p.id)
+                  setSelectedNodeId(null)
+                  setConfirmOpen(false)
+                  setFeedback('')
+                }}
+                className={[
+                  'rounded-full px-3 py-1 text-[12px] font-semibold transition',
+                  on
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+                ].join(' ')}
+              >
+                {p.name}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Tree section */}
+      <section
+        className={[
+          'rounded-3xl p-4 shadow-md ring-1 ring-black/5',
+          'bg-gradient-to-b',
+          branchTheme.cardBg,
+        ].join(' ')}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-slate-500">スキル系統</p>
+
+          <div className="flex gap-2">
+            {BRANCHES.map((b) => {
+              const on = b === selectedBranch
+              const t = BRANCH_UI[b]
+              return (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => {
+                    setSelectedBranch(b)
+                    setSelectedNodeId(null)
+                    setConfirmOpen(false)
+                    setFeedback('')
+                  }}
+                  className={[
+                    'rounded-full px-3 py-1 text-[12px] font-extrabold transition',
+                    on ? t.pillOn : t.pillOff,
+                  ].join(' ')}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {nodes.map((n, idx) => {
+            const p = selectedPlayer
+            const owned = !!p && hasPassive(p, n.id)
+            const unlockable = !!p && canUnlockPassive(p, n)
+            const selected = selectedNodeId === n.id
+
+            const dotCls = owned
+              ? branchTheme.dotOwned
+              : unlockable
+                ? branchTheme.dotUnlockable
+                : branchTheme.dotLocked
+
+            const connectorCls =
+              owned ? branchTheme.connectorOwned : branchTheme.connectorLocked
+
+            const iconSrc = getPassiveIconSrc(n.id)
+
+            return (
+              <div key={n.id} className="relative">
+                {/* connector(次があれば) */}
+                {idx < nodes.length - 1 && (
+                  <div
+                    className={[
+                    'absolute left-[13px] top-[34px] h-[26px] w-[4px] rounded-full',
+                    connectorCls,
+                    'pointer-events-none -z-10', // ★ 追加：背面固定 & クリック阻害なし
+                    ].join(' ')}
+                    />
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleTapNode(n.id)}
+                  className={[
+                    'relative z-10 w-full rounded-2xl bg-white/85 px-3 py-3 text-left shadow-sm ring-1 transition',
+                    selected ? 'ring-slate-900/30 shadow-md' : 'ring-black/5',
+                  ].join(' ')}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative mt-0.5 shrink-0">
+                      <div className={['h-3 w-3 rounded-full', dotCls].join(' ')} />
+                      <div
+                        className={[
+                          'mt-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-white ring-1',
+                          branchTheme.cardRing,
+                        ].join(' ')}
+                      >
+                        {!!iconSrc && (
+                          <img
+                            src={iconSrc}
+                            alt="skill icon"
+                            className="h-7 w-7 select-none object-contain"
+                            draggable={false}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className={['text-[11px] font-semibold', branchTheme.accentText].join(' ')}>
+                        {getTierLabel(selectedBranch, n.tier)}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm font-extrabold text-slate-900">
+                        {n.name}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-[11px] text-slate-600">
+                        {n.description}
+                      </p>
+
+                      {(n.requires?.length ?? 0) > 0 && (
+                        <p className="mt-1 text-[10px] text-slate-400">前提あり</p>
+                      )}
+                    </div>
+
+                    <div className="shrink-0">
+                      {owned ? (
+                        <span className="rounded-full bg-slate-900 px-2 py-1 text-[10px] font-semibold text-white">
+                          習得済
+                        </span>
+                      ) : unlockable ? (
+                        <span className={['rounded-full px-2 py-1 text-[10px] font-semibold', branchTheme.pillOff].join(' ')}>
+                          習得可
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">
+                          ロック
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Detail section（ツリーの下） */}
+      <section className="rounded-3xl bg-white/75 px-4 py-3 shadow-sm ring-1 ring-black/5">
+        {!selectedPlayer ? (
+          <p className="text-xs text-slate-600">プレイヤーが見つかりません。</p>
+        ) : !selectedNode ? (
+          <p className="text-xs text-slate-600">ツリーのノードをタップして詳細を表示してください。</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div
+                className={[
+                  'shrink-0 rounded-2xl p-2 ring-1 bg-white',
+                  branchTheme.cardRing,
+                ].join(' ')}
+              >
+                {!!getPassiveIconSrc(selectedNode.id) && (
+                  <img
+                    src={getPassiveIconSrc(selectedNode.id)}
+                    alt="skill icon"
+                    className="h-16 w-16 select-none object-contain"
+                    draggable={false}
+                  />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className={['text-[11px] font-semibold', branchTheme.accentText].join(' ')}>
+                  {getTierLabel(selectedBranch, selectedNode.tier)}
+                </p>
+                <p className="mt-0.5 truncate text-base font-extrabold text-slate-900">
+                  {selectedNode.name}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                  {selectedNode.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white px-3 py-2 text-xs text-slate-700 ring-1 ring-black/5">
+              {hasPassive(selectedPlayer, selectedNode.id) ? (
+                <p className="font-semibold text-emerald-700">習得済み</p>
+              ) : canUnlockPassive(selectedPlayer, selectedNode) ? (
+                <p className={['font-semibold', branchTheme.accentText].join(' ')}>習得可能</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="font-semibold text-slate-600">習得不可</p>
+                  <ul className="list-disc pl-4 text-[11px] text-slate-500">
+                    {getLockReasons(selectedPlayer, selectedNode).map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {feedback && (
+              <div className="rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {feedback}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                className="w-1/2 rounded-2xl"
+                variant="outline"
+                onClick={() => setPage('settings')}
+              >
+                設定へ
+              </Button>
+
+              <Button
+                className="w-1/2 rounded-2xl"
+                onClick={handleTryUnlock}
+                disabled={hasPassive(selectedPlayer, selectedNode.id)}
+              >
+                習得する
+              </Button>
+            </div>
+
+            {confirmOpen && (
+              <div className="rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3">
+                <p className="text-sm font-extrabold text-slate-900">習得しますか？</p>
+                <p className="mt-1 text-xs text-slate-700">
+                  「{selectedNode.name}」を習得します（SP {selectedNode.costSp} 消費）。
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    className="w-1/2 rounded-2xl"
+                    variant="outline"
+                    onClick={() => setConfirmOpen(false)}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button className="w-1/2 rounded-2xl" onClick={handleConfirmUnlock}>
+                    確定
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ★ ページ内フッターボタンは無し（MainLayoutフッターに統一） */}
+    </div>
+  )
+}
+
+export default PassivesPages

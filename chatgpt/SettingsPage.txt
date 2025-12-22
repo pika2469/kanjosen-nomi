@@ -1,0 +1,361 @@
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useGameStore } from '@/store/gameStore'
+import { STATIONS } from '@/stations'
+import type { StationId } from '@/types/game'
+
+export function SettingsPage() {
+  const {
+    settings,
+    setSettings,
+    resetAllData,
+
+    players,
+    addPlayer,
+    deletePlayer,
+    setPlayerName,
+    setPlayerLi,
+    setPlayerMaxDrink,
+
+    setPage, // ★ Passives / Home へ遷移で使用
+  } = useGameStore()
+
+  // --- 折りたたみ ---
+  const [playersOpen, setPlayersOpen] = useState(false)
+
+  // --- 追加フォーム ---
+  const [newPlayerName, setNewPlayerName] = useState('')
+
+  const playerCountLabel = useMemo(() => `${players.length}人`, [players.length])
+
+  const handleAddPlayer = async () => {
+    const name = newPlayerName.trim()
+    if (!name) return
+    await addPlayer(name, 'attack') // 最短：style固定（後でUI追加可）
+    setNewPlayerName('')
+  }
+
+  const handleDeletePlayer = async (id: string) => {
+    const ok = window.confirm('このプレイヤーを削除しますか？')
+    if (!ok) return
+    await deletePlayer(id)
+  }
+
+  const handleResetAll = async () => {
+    const ok = window.confirm('すべてのデータを完全初期化します。よろしいですか？')
+    if (!ok) return
+    await resetAllData()
+  }
+
+  // 共通UIクラス（モダン寄せ）
+  const cardShell =
+    'rounded-3xl bg-white/80 shadow-md ring-1 ring-black/5'
+
+  const selectClass =
+    'mt-1 w-full appearance-none rounded-2xl border border-white/40 bg-white/75 px-3 py-2.5 text-sm shadow-sm outline-none ' +
+    'focus:ring-2 focus:ring-sky-300 focus:border-sky-200'
+
+  const inputClass =
+    'mt-1 w-full rounded-2xl border border-white/40 bg-white/75 px-3 py-2.5 text-sm shadow-sm outline-none ' +
+    'focus:ring-2 focus:ring-sky-300 focus:border-sky-200'
+
+  return (
+    <div className="space-y-4">
+      {/* タイトル */}
+      <section>
+        <h2 className="mb-1 text-xl font-bold text-slate-900">設定</h2>
+        <p className="text-sm text-slate-600">
+          ゲームの準備と管理を行います。
+        </p>
+      </section>
+
+      {/* ------------------------------
+          プレイヤー設定（折りたたみ）
+         ------------------------------ */}
+      <section className={cardShell + ' p-4'}>
+        {/* 見出し（タップで開閉） */}
+        <button
+          type="button"
+          onClick={() => setPlayersOpen((v) => !v)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <div>
+            <div className="text-base font-bold text-slate-900">プレイヤー設定</div>
+            <div className="mt-0.5 text-xs text-slate-500">
+              追加・削除・名前／杯数の設定（{playerCountLabel}）
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">
+            {playersOpen ? '閉じる' : '開く'}
+          </span>
+        </button>
+
+        {playersOpen && (
+          <div className="mt-4 space-y-4">
+            {/* 追加フォーム */}
+            <div className="rounded-3xl bg-slate-50/70 p-4 ring-1 ring-black/5">
+              <div className="mb-2 text-xs font-semibold text-slate-600">
+                プレイヤー追加
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={newPlayerName}
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                  placeholder="名前を入力"
+                  className={inputClass}
+                />
+                <Button
+                  type="button"
+                  onClick={handleAddPlayer}
+                  disabled={!newPlayerName.trim()}
+                  className="rounded-2xl px-4"
+                >
+                  追加
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                ※ 最大人数制限はありません。
+              </p>
+            </div>
+
+            {/* 一覧 */}
+            {players.length === 0 ? (
+              <p className="text-xs text-slate-500">
+                プレイヤーが登録されていません。
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {players.map((p) => (
+                  <div
+                    key={p.id}
+                    className={[
+                      'relative overflow-hidden rounded-3xl border border-white/50',
+                      'bg-gradient-to-br from-white via-slate-50 to-indigo-50',
+                      'shadow-[0_10px_25px_rgba(2,6,23,0.08)]',
+                      'ring-1 ring-black/5',
+                      'p-4',
+                    ].join(' ')}
+                  >
+                    {/* 光沢（sheen） */}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/45 via-white/10 to-transparent" />
+                    {/* 角の薄いハイライト */}
+                    <div className="pointer-events-none absolute -left-16 -top-16 h-40 w-40 rounded-full bg-sky-200/20 blur-2xl" />
+
+                    <div className="relative">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          {/* 名前 */}
+                          <div className="text-center text-xs font-semibold text-slate-500">
+                            名前
+                          </div>
+                          <input
+                            defaultValue={p.name}
+                            className={inputClass + ' text-base font-semibold'}
+                            onBlur={(e) => setPlayerName(p.id, e.target.value)}
+                          />
+
+                          {/* ID */}
+                          <div className="mt-2 text-[11px] text-slate-500">
+                            ID:{' '}
+                            <span className="font-mono text-slate-700">
+                              {p.id}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 削除 */}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => handleDeletePlayer(p.id)}
+                          className="rounded-2xl px-5 py-2"
+                        >
+                          削除
+                        </Button>
+                      </div>
+
+                      {/* 杯数設定（セレクトUI改善） */}
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-center text-xs font-semibold text-slate-500">
+                            最大杯数（3〜6）
+                          </div>
+                          <div className="relative">
+                            <select
+                              className={selectClass}
+                              value={p.maxDrink ?? 5}
+                              onChange={(e) =>
+                                setPlayerMaxDrink(p.id, Number(e.target.value))
+                              }
+                            >
+                              {[3, 4, 5, 6].map((v) => (
+                                <option key={v} value={v}>
+                                  {v} 杯
+                                </option>
+                              ))}
+                            </select>
+                            {/* ▼ ▼ を軽く強調（装飾） */}
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                              ▾
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-center text-xs font-semibold text-slate-500">
+                            最小杯数（1〜3）
+                          </div>
+                          <div className="relative">
+                            <select
+                              className={selectClass}
+                              value={p.Li ?? 1}
+                              onChange={(e) =>
+                                setPlayerLi(p.id, Number(e.target.value))
+                              }
+                            >
+                              {[1, 2, 3].map((v) => (
+                                <option key={v} value={v}>
+                                  {v} 杯
+                                </option>
+                              ))}
+                            </select>
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                              ▾
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* セーフティ説明（仕様確定：上限2） */}
+                      {settings.safety && (
+                        <div className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-[11px] text-amber-900 ring-1 ring-amber-200">
+                          セーフティモードON：このゲームでは最終杯数の上限が <b>2杯</b> になります。
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* 駅設定 */}
+      <section className={cardShell + ' p-4'}>
+        <div className="mb-3 text-sm font-bold text-slate-900">駅設定</div>
+
+        {/* 駅重複 */}
+        <div className="flex items-center justify-between rounded-2xl bg-white/70 p-3 ring-1 ring-black/5">
+          <div className="text-left">
+            <div className="font-semibold text-slate-900">駅重複</div>
+            <div className="mt-0.5 text-xs text-slate-500">
+              同じ駅を複数回訪問することを許可します。
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant={settings.allowDuplicateStations ? 'default' : 'outline'}
+            className="rounded-2xl"
+            onClick={() =>
+              setSettings({ allowDuplicateStations: !settings.allowDuplicateStations })
+            }
+          >
+            {settings.allowDuplicateStations ? 'ON' : 'OFF'}
+          </Button>
+        </div>
+
+        {/* 開始駅 */}
+        <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/70 p-3 ring-1 ring-black/5">
+          <div className="text-left">
+            <div className="font-semibold text-slate-900">開始駅</div>
+            <div className="mt-0.5 text-xs text-slate-500">
+              ゲーム開始時の基準となる駅です（デフォルト：大阪）。
+            </div>
+          </div>
+
+          <select
+            className="rounded-2xl border border-white/40 bg-white/80 px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-sky-300"
+            value={settings.startStationId}
+            onChange={(e) => setSettings({ startStationId: e.target.value as StationId })}
+          >
+            {STATIONS.map((station) => (
+              <option key={station.id} value={station.id}>
+                {station.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
+
+      {/* セーフティ */}
+      <section className={cardShell + ' p-4'}>
+        <div className="mb-3 text-sm font-bold text-slate-900">ゲーム補助</div>
+
+        <div className="flex items-center justify-between rounded-2xl bg-white/70 p-3 ring-1 ring-black/5">
+          <div className="text-left">
+            <div className="font-semibold text-slate-900">セーフティモード</div>
+            <div className="mt-0.5 text-xs text-slate-500">
+              ONの間、最終杯数の上限が2杯になります。
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant={settings.safety ? 'default' : 'outline'}
+            className="rounded-2xl"
+            onClick={() => setSettings({ safety: !settings.safety })}
+          >
+            {settings.safety ? 'ON' : 'OFF'}
+          </Button>
+        </div>
+      </section>
+
+      {/* ★ 追加：パッシブスキル管理ボタン（Passivesページへ） */}
+      <section className={cardShell + ' p-4'}>
+        <div className="mb-2 text-sm font-bold text-slate-900">スキル</div>
+        <p className="text-xs text-slate-500">
+          パッシブスキルの習得状況を確認・管理します。
+        </p>
+        <Button
+          type="button"
+          className="mt-3 w-full rounded-2xl"
+          onClick={() => setPage('passives')}
+        >
+          パッシブスキル管理へ
+        </Button>
+      </section>
+
+      {/* ★ サウンド項目は削除（実装しないため） */}
+
+      {/* データリセット（完全初期化のみ） */}
+      <section className={cardShell + ' p-4'}>
+        <div className="mb-2 text-sm font-bold text-rose-700">データリセット</div>
+        <p className="text-xs text-slate-500">
+          プレイヤー情報・設定・ゲーム進行をすべて完全初期化します。
+        </p>
+        <Button
+          variant="destructive"
+          className="mt-3 w-full rounded-2xl"
+          onClick={handleResetAll}
+        >
+          完全初期化する
+        </Button>
+      </section>
+
+      <section className={cardShell + ' p-4'}>
+        <div className="mb-2 text-sm font-bold text-slate-900">開発者向け</div>
+        <p className="text-xs text-slate-500">
+            デバッグページへ移動します。
+        </p>
+        <Button
+            type="button"
+            variant="outline"
+            className="mt-3 w-full rounded-2xl"
+            onClick={() => setPage('debug')}
+        >
+            Debugページへ
+        </Button>
+    </section>
+    </div>
+  )
+}

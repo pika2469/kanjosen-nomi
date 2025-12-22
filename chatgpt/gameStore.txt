@@ -166,6 +166,7 @@ export const useGameStore = create<Store>((set, get) => ({
         lastStationDirection: null,
         currentEvent: null,
         currentDrinks: [],
+        drinkHistory: [],
         lastUsedCard: null,
         cardUsageBlockedForPlayerId: null,
         boostRareUsedForTurn: false,
@@ -325,6 +326,7 @@ export const useGameStore = create<Store>((set, get) => ({
                 lastStationDirection: null,
                 currentEvent: null,
                 currentDrinks: [],
+                drinkHistory: [],
                 lastUsedCard: null,
                 cardUsageBlockedForPlayerId: null,
                 boostRareUsedForTurn: false,
@@ -368,9 +370,20 @@ export const useGameStore = create<Store>((set, get) => ({
     nextTurn: () => {
         const g = get().game
         const nextIdx = (g.activePlayerIndex + 1) % Math.max(1, get().players.length || 1)
+
+        // このターンの杯数履歴を保存
+        const snapshot =
+            g.currentDrinks && g.currentDrinks.length > 0
+            ? {
+                turn: g.turn,
+                drinks: g.currentDrinks.map((d) => ({ ...d })),
+            }
+            : null
+
         set({
             game: {
                 ...g,
+                drinkHistory: snapshot ? [...g.drinkHistory, snapshot] : g.drinkHistory,
                 turn: g.turn + 1,   // ターン数+1
                 phase: 'mood',
                 mood: null,

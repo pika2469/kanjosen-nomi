@@ -455,32 +455,6 @@ export default function UseCardsPage() {
           </p>
         )}
       </section>
-
-      {/* Debug */}
-      <section className="rounded-2xl border bg-white/70 p-3 text-sm shadow-sm">
-        <div className="text-center font-semibold text-slate-700">Debug</div>
-        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-700">
-          <div>phase</div>
-          <div className="text-right">{game.phase}</div>
-
-          <div>turn</div>
-          <div className="text-right">{game.turn}</div>
-
-          <div>phasePlayerIndex</div>
-          <div className="text-right">{String(game.phasePlayerIndex)}</div>
-
-          <div>selectedHandIndex</div>
-          <div className="text-right">{String(selectedHandIndex)}</div>
-
-          <div>selectedCardId</div>
-          <div className="text-right">{selectedCardId || '---'}</div>
-
-          <div>lastUsedCard</div>
-          <div className="text-right">
-            {game.lastUsedCard ? `${game.lastUsedCard.cardId}` : '---'}
-          </div>
-        </div>
-      </section>
     </div>
   )
 }
