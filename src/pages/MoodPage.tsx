@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import { MOODS } from '@/constants/mood'
-import rouletteImg from '@/assets/mood_roulette_dummy4.png'
+import rouletteImg from '@/assets/mood_roulette.png'
 import { PageShell } from '@/components/layout/PageShell'
 import { StickyNextBar } from '@/components/layout/StickyNextBar'
 
@@ -22,7 +22,10 @@ export default function MoodPage() {
   const { game, players, spinMood, proceedPhase } = useGameStore()
 
   const activePlayer = players[game.activePlayerIndex] ?? null
-  const moodInfo = useMemo(() => MOODS.find((m) => m.id === game.mood) ?? null, [game.mood])
+  const moodInfo = useMemo(
+    () => MOODS.find((m) => m.id === game.mood) ?? null,
+    [game.mood],
+  )
 
   const isDecided = !!moodInfo
   const moodImg = getMoodImageSrc(game.mood)
@@ -38,6 +41,27 @@ export default function MoodPage() {
     setShowResult(false)
   }, [isDecided, game.mood])
 
+  // ★ 追加：ルーレット回転 → 結果確定のための状態
+  const [spinning, setSpinning] = useState(false)
+  const spinTimerRef = useRef<number | null>(null)
+  useEffect(() => {
+    return () => {
+      if (spinTimerRef.current != null) window.clearTimeout(spinTimerRef.current)
+    }
+  }, [])
+
+  const handleSpin = () => {
+    if (spinning) return
+    if (isDecided) return
+
+    setSpinning(true)
+    spinTimerRef.current = window.setTimeout(() => {
+      spinMood()
+      setSpinning(false)
+      spinTimerRef.current = null
+    }, 650)
+  }
+
   // ルーレットとムード画像のサイズを統一
   const ICON_SIZE = 220
 
@@ -48,16 +72,18 @@ export default function MoodPage() {
       description="このターンの雰囲気をルーレットで決定します。"
       rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
     >
-     <div className="flex flex-col items-center justify-center gap-4">
-      <div className="flex flex-col items-center justify-center gap-4">{/* 未決定：ルーレットのみ */}
+      <div className="flex flex-col items-center justify-center gap-4">
+        <div className="flex flex-col items-center justify-center gap-4">
+          {/* 未決定：ルーレットのみ */}
           <div className="flex flex-col items-center">
             {/* ルーレットのみ */}
             {!isDecided && (
               <>
                 <button
                   type="button"
-                  onClick={spinMood}
-                  className="tap-icon group relative flex items-center justify-center"
+                  onClick={handleSpin}
+                  disabled={spinning}
+                  className="tap-icon group relative flex items-center justify-center disabled:opacity-80"
                   style={{ width: ICON_SIZE, height: ICON_SIZE }}
                   aria-label="ムードルーレットを回す"
                 >
@@ -66,7 +92,10 @@ export default function MoodPage() {
                   <img
                     src={rouletteImg}
                     alt="ムードルーレット"
-                    className="relative z-10 h-full w-full select-none object-contain"
+                    className={[
+                      'relative z-10 h-full w-full select-none object-contain',
+                      spinning ? 'ks-anim-spin' : '',
+                    ].join(' ')}
                     draggable={false}
                   />
                 </button>
@@ -88,7 +117,9 @@ export default function MoodPage() {
                   className={[
                     'relative',
                     'transition-all duration-300 ease-out',
-                    showResult ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-[0.98]',
+                    showResult
+                      ? 'opacity-100 translate-y-0 scale-100'
+                      : 'opacity-0 translate-y-2 scale-[0.98]',
                   ].join(' ')}
                   style={{ width: ICON_SIZE, height: ICON_SIZE }}
                 >
@@ -108,7 +139,9 @@ export default function MoodPage() {
                   className={[
                     'mt-5 w-full max-w-[520px]',
                     'transition-all duration-300 ease-out',
-                    showResult ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+                    showResult
+                      ? 'opacity-100 translate-y-0'
+                      : 'opacity-0 translate-y-2',
                   ].join(' ')}
                 >
                   <p className="text-center text-[11px] font-semibold text-slate-500">
@@ -122,7 +155,7 @@ export default function MoodPage() {
 
                   {/* 説明文：折り返し & 左寄せ（中央の中で左寄せ） */}
                   {moodInfo.description && (
-                    <div className="mt-3 mx-auto max-w-[360px] px-1">
+                    <div className="mx-auto mt-3 max-w-[360px] px-1">
                       <p className="text-left text-sm leading-relaxed text-slate-700">
                         {moodInfo.description}
                       </p>
@@ -133,11 +166,16 @@ export default function MoodPage() {
             )}
           </div>
         </div>
+
         {/* ページ末尾CTA */}
-        <StickyNextBar 
+        <StickyNextBar
           onNext={proceedPhase}
           disabled={!isDecided}
-          hint={!isDecided ? '※ルーレットをタップしてムードを決定してください' : undefined}
+          hint={
+            !isDecided
+              ? '※ルーレットをタップしてムードを決定してください'
+              : undefined
+          }
         />
       </div>
     </PageShell>

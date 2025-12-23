@@ -12,37 +12,37 @@ export const MOODS: MoodInfo[] = [
         id: 'max',
         icon: '🌞',
         label: 'テンション+',
-        description: '全員の最終杯数が+1杯される予定(最大5杯)'
+        description: '全員の最終杯数が+1杯されます'
     },
     {
         id: 'calm',
         icon: '🌙',
-        label: 'ほろ酔いタイム',
-        description: '全員の最終杯数が-1杯される予定(下限は各Li)'
+        label: 'ちょっと休憩',
+        description: '全員の最終杯数が-1杯されます'
     },
     {
         id: 'aggressive',
         icon: '🔥',
         label: 'アタックモード',
-        description: 'このターンのドローでアタックカード出現率+15%の予定'
+        description: 'このターンのドローでアタックカード出現率+15%'
     },
     {
         id: 'defensive',
         icon: '💧',
         label: 'セーフモード',
-        description: 'このターンのドローでセーフカード出現率+15%の予定'
+        description: 'このターンのドローでセーフカード出現率+15%'
     },
     {
         id: 'lucky',
         icon: '💫',
         label: 'ハッピードロー',
-        description: 'このターンのドローでレア以上(R/SR)出現率+15%の予定'
+        description: 'このターンのドローでレア以上(R/SR)出現率+15%'
     },
     {
         id: 'balance',
         icon: '🌞',
         label: 'ブーストモード',
-        description: 'このターンの代表プレイヤーのドロー1枚が必ずR/SRになる予定'
+        description: 'このターンの代表プレイヤーのドロー1枚が必ずR/SRになる'
     },
 ]
 

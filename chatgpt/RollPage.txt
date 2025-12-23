@@ -163,8 +163,8 @@ export default function RollPage() {
             </button>
 
             <div className="w-full max-w-[420px] px-1">
-              <p className="text-center text-xs leading-relaxed text-slate-600">
-                タップで抽選します
+              <p className="text-left text-xs leading-relaxed text-slate-600">
+                お酒アイコンをタップして抽選してください。
               </p>
             </div>
           </>

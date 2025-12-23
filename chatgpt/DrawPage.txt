@@ -118,16 +118,16 @@ export default function DrawPage() {
   const nextHint = !drawPlayer
     ? '※ プレイヤーが見つかりません。'
     : isHandFull
-      ? '※ 手札が上限のため、ドローせず次へ進みます。'
+      ? '※ 手札が上限のため、ドローせず次へ進めます。'
       : !drawnThisPlayer
-        ? '※ まずカードをドローしてください'
+        ? '※ まずカードをタップしてドローしてください（このターン1回だけ）。'
         : undefined
 
   return (
     <PageShell
       step="STEP 5 / Draw"
       title="カードを引こう"
-      description="カードをタップして、このプレイヤーのカードをドローします。"
+      description="カードをタップして、このプレイヤーのカードをドローします（このターン1回だけ）。ドロー後は「直近ドロー」が大きく表示され、手札アイコンをタップすると表示カードを切り替えられます。"
       rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
     >
       <div className="flex flex-col items-center justify-center gap-5">
@@ -142,7 +142,7 @@ export default function DrawPage() {
             </span>
           </div>
 
-          <div className="mt-1 flex items-end justify-between">
+          <div className="mt-2 flex items-end justify-between">
             <p className="text-xl font-extrabold text-slate-900">
               {drawPlayer ? drawPlayer.name : '（プレイヤー未設定）'}
             </p>
@@ -185,8 +185,8 @@ export default function DrawPage() {
             </button>
 
             <div className="w-full max-w-[420px] px-1">
-              <p className="text-center text-xs leading-relaxed text-slate-600">
-                タップしてドローしてください。
+              <p className="text-left text-xs leading-relaxed text-slate-600">
+                まだドローしていません。カードをタップしてドローしてください。
               </p>
               {isHandFull && (
                 <p className="mt-2 text-left text-xs leading-relaxed text-slate-600">

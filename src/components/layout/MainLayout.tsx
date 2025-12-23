@@ -1,6 +1,7 @@
 // src/components/layout/MainLayout.tsx
 import React from 'react'
 import { useGameStore } from '@/store/gameStore'
+import { Home as HomeIcon, Settings as SettingsIcon } from 'lucide-react'
 
 type MainLayoutProps = {
   children: React.ReactNode
@@ -54,7 +55,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           className={[
             'flex-1 min-h-0 px-4',
             isHomePage
-              ? 'overflow-hidden overscroll-none flex items-center justify-center'
+              ? 'overflow-visible overscroll-none flex items-center justify-center'
               : 'overflow-y-auto',
             showFooter
               ? 'pb-[calc(var(--footer-h)+env(safe-area-inset-bottom))]'
@@ -80,9 +81,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 <button
                   type="button"
                   onClick={() => setPage('home')}
-                  className="footer-btn"
+                  className="footer-btn flex items-center justify-center gap-2"
+                  aria-label="Home"
                 >
-                  Home
+                  <HomeIcon size={18} />
+                  <span>Home</span>
                 </button>
               </div>
             ) : (
@@ -91,16 +94,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 <button
                   type="button"
                   onClick={() => setPage('home')}
-                  className="footer-bin"
+                  className="footer-btn flex items-center justify-center gap-2"
+                  aria-label="Home"
                 >
-                  Home
+                  <HomeIcon size={18} />
+                  <span>Home</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setPage('settings')}
-                  className="footer-btn"
+                  className="footer-btn flex items-center justify-center gap-2"
+                  aria-label="Settings"
                 >
-                  Settings
+                  <SettingsIcon size={18} />
+                  <span>Settings</span>                  
                 </button>
               </div>
             )}

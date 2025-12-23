@@ -67,6 +67,9 @@ export function ResultPage() {
   // ★ 点タップで中央カードを軽く浮かせる
   const [popCenter, setPopCenter] = useState(false)
 
+  // ★ デバッグ表示
+  const [showDebug, setShowDebug] = useState(false)
+
   const visitedSet = useMemo(
     () => new Set(game.visitedStations),
     [game.visitedStations],
@@ -440,6 +443,93 @@ export function ResultPage() {
           hint={!hasDrinks ? '※ まだ結果がありません。' : undefined}
         />
 
+        {/* ===== Debug ===== */}
+        <section className="mt-4 rounded-3xl bg-slate-50 px-4 py-3 text-xs text-slate-600 ring-1 ring-black/5">
+          <button
+            type="button"
+            onClick={() => setShowDebug((v) => !v)}
+            className="mb-2 rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-300"
+          >
+            Debug {showDebug ? '非表示' : '表示'}
+          </button>
+
+          {showDebug && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="font-semibold">phase</p>
+                  <p className="font-mono">{game.phase}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">turn</p>
+                  <p className="font-mono">{game.turn}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">mood</p>
+                  <p className="font-mono">{String(game.mood)}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">activePlayerIndex</p>
+                  <p className="font-mono">{game.activePlayerIndex}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-semibold">currentStation</p>
+                <p className="font-mono">
+                  {String(game.currentStation)} / {currentStationName}
+                </p>
+              </div>
+
+              <div>
+                <p className="font-semibold">visitedStations</p>
+                <ul className="mt-1 space-y-1">
+                  {game.visitedStations.map((id, idx) => (
+                    <li key={`${id}-${idx}`} className="font-mono">
+                      {idx + 1}. {String(id)} /{' '}
+                      {findStation(id)?.name ?? 'unknown'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-semibold">currentDrinks</p>
+                {game.currentDrinks.length === 0 ? (
+                  <p className="font-mono text-slate-400">none</p>
+                ) : (
+                  <ul className="mt-1 space-y-1">
+                    {game.currentDrinks.map((d) => (
+                      <li key={d.playerId} className="font-mono">
+                        {d.playerId} | base:{d.base} mood:{d.moodMod} event:
+                        {d.eventMod} passive:{d.passiveMod} → final:{d.final}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold">XP gain (this turn)</p>
+                <ul className="mt-1 space-y-1">
+                  {players.map((p) => (
+                    <li key={p.id} className="font-mono">
+                      {p.name}: +{getXpGainForPlayer(p.id)} XP
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-semibold">UI state</p>
+                <p className="font-mono">
+                  selectedStationId: {String(selectedStationId)} / popCenter:{' '}
+                  {String(popCenter)} / showHistory: {String(showHistory)}
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </PageShell>
   )

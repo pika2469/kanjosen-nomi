@@ -35,8 +35,8 @@ export default function ProgressPage() {
   return (
     <PageShell
       step="STEP 7 / Progress"
-      title="成長判定"
-      description="このターンの最終杯数（サマリ）を確認して、結果画面へ進みます。"
+      title="最終杯数"
+      description="このターンの最終杯数（サマリ）を確認します。"
       rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
     >
       <div className="flex min-h-full flex-col gap-5">

@@ -23,10 +23,10 @@ export type StationEventDef = {
 export const STATION_EVENTS: Record<StationEventId, StationEventDef> = {
   downtown_rep_plus2_others_plus1: {
     id: 'downtown_rep_plus2_others_plus1',
-    title: '繁華街：代表ドカ飲みタイム',
+    title: '繁華街：飲みペース↑↑',
     summary: '代表+2杯、その他の全員+1杯',
     detail:
-      'にぎやかな繁華街に到着。テンションが一気に上がり、代表プレイヤーは特に飲まされる展開に。',
+      'にぎやかな繁華街に到着。テンションが一気に上がり、みんなの飲む量が増えます。',
     illustrationId: 'downtown',
   },
 
@@ -42,7 +42,7 @@ export const STATION_EVENTS: Record<StationEventId, StationEventDef> = {
   waterside_others_minus1: {
     id: 'waterside_others_minus1',
     title: '水辺：まったりタイム',
-    summary: '代表以外の全員-1杯',
+    summary: '今ターンは全員-1杯（ただし代表プレイヤーを除く）',
     detail:
       '落ち着いた水辺の空気でペースダウン。代表プレイヤー以外は1杯セーブ。',
     illustrationId: 'waterside',
@@ -51,9 +51,9 @@ export const STATION_EVENTS: Record<StationEventId, StationEventDef> = {
   waterside_rep_minus1: {
     id: 'waterside_rep_minus1',
     title: '水辺：代表クールダウン',
-    summary: '代表のみ-1杯',
+    summary: '代表プレイヤーは今ターン-1杯',
     detail:
-      '涼しい風に当たり、少し休憩。代表プレイヤーのみ飲む量が1杯減ります。',
+      '涼しい風に当たり、少し休憩しよう。',
     illustrationId: 'waterside',
   },
 
@@ -68,8 +68,8 @@ export const STATION_EVENTS: Record<StationEventId, StationEventDef> = {
 
   shitamachi_rep_plus1: {
     id: 'shitamachi_rep_plus1',
-    title: '下町：代表サービス',
-    summary: '代表のみ+1杯',
+    title: '下町：サービス精神！',
+    summary: '代表プレイヤーのみ+1杯',
     detail:
       '店主からのサービスで、代表プレイヤーだけ1杯追加されます。',
     illustrationId: 'shitamachi',
@@ -86,10 +86,10 @@ export const STATION_EVENTS: Record<StationEventId, StationEventDef> = {
 
   transfer_rep_skip_action: {
     id: 'transfer_rep_skip_action',
-    title: '乗換：代表アクション停止',
+    title: '乗換：代表プレイヤー行動禁止',
     summary: '代表はこのターンカード使用不可',
     detail:
-      'バタバタして余裕がない代表。このターンはカードが使えません。',
+      '乗換で混乱してしまって余裕のない代表は、このターンはカードが使う余裕がない！',
     illustrationId: 'transfer',
   },
 }

@@ -12,7 +12,7 @@ export function StickyNextBar({
   hint,
 }: StickyNextBarProps) {
   return (
-    <section className="mt-10 w-full">
+    <section className="mt-8 w-full">
       <button
         type="button"
         onClick={onNext}
@@ -35,7 +35,7 @@ export function StickyNextBar({
       </button>
 
       {hint && (
-        <p className="mt-2 text-left text-[11px] text-slate-500">{hint}</p>
+        <p className="mt-2 text-center text-[11px] text-slate-500">{hint}</p>
       )}
 
       {/* ページ末尾の余白（ホームバー / フッターとの干渉防止） */}

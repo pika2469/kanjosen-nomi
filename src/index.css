@@ -277,4 +277,63 @@ body {
   }
 }
 
+/* ===== Phase animations (B-1) ===== */
+@keyframes ks-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(1080deg); } /* 3回転 */
+}
+
+@keyframes ks-shake {
+  0%   { transform: rotate(0deg) translate(0, 0); }
+  15%  { transform: rotate(-10deg) translate(-2px, 0); }
+  30%  { transform: rotate(10deg) translate(2px, 0); }
+  45%  { transform: rotate(-8deg) translate(-2px, 0); }
+  60%  { transform: rotate(8deg) translate(2px, 0); }
+  75%  { transform: rotate(-4deg) translate(-1px, 0); }
+  100% { transform: rotate(0deg) translate(0, 0); }
+}
+
+@keyframes ks-flip {
+  0%   { transform: perspective(900px) rotateY(0deg) scale(1); }
+  50%  { transform: perspective(900px) rotateY(90deg) scale(0.98); }
+  100% { transform: perspective(900px) rotateY(180deg) scale(1); }
+}
+
+.ks-anim-spin {
+  animation: ks-spin 700ms cubic-bezier(.2,.8,.2,1) both;
+  transform-origin: 50% 50%;
+}
+
+.ks-anim-shake {
+  animation: ks-shake 520ms cubic-bezier(.2,.8,.2,1) both;
+  transform-origin: 50% 50%;
+}
+
+.ks-anim-flip {
+  animation: ks-flip 520ms cubic-bezier(.2,.8,.2,1) both;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+}
+
+/* ===== Phase animations (B-1) ===== */
+@keyframes ks-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(1080deg); } /* 3回転 */
+}
+
+@keyframes ks-shake {
+  0%   { transform: rotate(0deg) translate(0, 0); }
+  15%  { transform: rotate(-10deg) translate(-2px, 0); }
+  30%  { transform: rotate(10deg) translate(2px, 0); }
+  45%  { transform: rotate(-8deg) translate(-2px, 0); }
+  60%  { transform: rotate(8deg) translate(2px, 0); }
+  75%  { transform: rotate(-4deg) translate(-1px, 0); }
+  100% { transform: rotate(0deg) translate(0, 0); }
+}
+
+@keyframes ks-flip {
+  0%   { transform: perspective(900px) rotateY(0deg) scale(1); }
+  50%  { transform: perspective(900px) rotateY(90deg) scale(0.98); }
+  100% { transform: perspective(900px) rotateY(180deg) scale(1); }
+}
 

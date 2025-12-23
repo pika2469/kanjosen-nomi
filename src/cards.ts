@@ -36,21 +36,21 @@ export const CARDS: Card[] = [
         kind: 'attack',
         rarity: 'R',
         name: '勝負タイム',
-        description: '簡易ミニゲームで負けた1名が+1杯',
+        description: '簡易ミニゲームで負けた1名が+1杯(現状はランダム1名が+1杯)',
     },
     {
         id: 'atk_shoot',
         kind: 'attack',
         rarity: 'R',
         name: '狙い撃ち',
-        description: '指定1名は今ターン杯数を再抽選(ロジックは未実装)',
+        description: '指定された1名は今ターン杯数を再抽選',
     },
     {
         id: 'atk_field_break',
         kind: 'attack',
         rarity: 'SR',
         name: 'フィールドブレイク',
-        description: '今ターン全員のセーフカード効果を無効化(ロジックは未実装)',
+        description: '今ターン全員のセーフカード効果を無効化',
     },
     // セーフ系
     {
@@ -58,7 +58,7 @@ export const CARDS: Card[] = [
         kind: 'safe',
         rarity: 'SR',
         name: 'ノンアル券',
-        description: 'このターン杯数0固定',
+        description: 'このターンの自分の杯数を0杯にする',
     },
     {
         id: 'safe_hitoyasumi',
@@ -72,21 +72,21 @@ export const CARDS: Card[] = [
         kind: 'safe',
         rarity: 'R',
         name: '軽めにいくわ',
-        description: '自分-2杯,次ターン杯数抽選上昇(ロジックは未実装)',
+        description: '自分の杯数を-2杯するが、次ターンの抽選杯数が上昇しやすい',
     },
     {
         id: 'safe_slue_guard',
         kind: 'safe',
         rarity: 'R',
         name: 'スルーガード',
-        description: '加算を自分だけ無効化(ロジックは未実装)',
+        description: '全員+1杯系の加算効果を自分だけ無効化',
     },
     {
         id: 'safe_yukkuri_mode',
         kind: 'safe',
         rarity: 'R',
         name: 'ゆっくりモード',
-        description: '杯数抽選が下限寄りになる(ロジックは未実装)',
+        description: '次ターンの杯数抽選が下限寄りになる',
     },
     // スペシャル系
     {
@@ -101,7 +101,7 @@ export const CARDS: Card[] = [
         kind: 'special',
         rarity: 'N',
         name: 'ドロー+1',
-        description: '次ターンのカードドロー+1枚(ロジックは未実装)',
+        description: '次ターンのカードドロー+1枚',
     },
     {
         id: 'sp_gain_xp',
@@ -115,7 +115,7 @@ export const CARDS: Card[] = [
         kind: 'special',
         rarity: 'N',
         name: 'ランダムチェンジ',
-        description: 'ランダム2名の杯数を入れ替える(ロジックは未実装)',
+        description: 'ランダム2名の杯数を入れ替える',
     },
     {
         id: 'sp_reverse',

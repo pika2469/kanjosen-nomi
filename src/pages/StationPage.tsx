@@ -1,5 +1,5 @@
 // src/pages/StationPage.tsx
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 import stationDiceImg from '@/assets/station_dice_dummy3.png'
 import { PageShell } from '@/components/layout/PageShell'
@@ -24,9 +24,26 @@ export default function StationPage() {
 
   const decided = isStationDecided()
 
+  // ★ 追加：サイコロ演出用
+  const [rolling, setRolling] = useState(false)
+  const tRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (tRef.current != null) window.clearTimeout(tRef.current)
+    }
+  }, [])
+
   const handleTapDice = () => {
-    // 未決定なら、決定して次フェーズへ進める
-    decideStationAndGoNext()
+    if (rolling) return
+    if (decided || game.phase !== 'station') return
+
+    setRolling(true)
+    tRef.current = window.setTimeout(() => {
+      decideStationAndGoNext()
+      setRolling(false)
+      tRef.current = null
+    }, 450)
   }
 
   const ICON_SIZE = 220
@@ -42,8 +59,8 @@ export default function StationPage() {
         <button
           type="button"
           onClick={handleTapDice}
-          disabled={decided || game.phase !== 'station'}
-          className="tap-icon group relative flex items-center justify-center"
+          disabled={decided || rolling || game.phase !== 'station'}
+          className="tap-icon group relative flex items-center justify-center disabled:opacity-80"
           style={{ width: ICON_SIZE, height: ICON_SIZE }}
           aria-label="駅を決めるサイコロ"
         >
@@ -51,7 +68,10 @@ export default function StationPage() {
           <img
             src={stationDiceImg}
             alt="駅決定サイコロ"
-            className="relative z-10 h-full w-full select-none object-contain"
+            className={[
+              'relative z-10 h-full w-full select-none object-contain',
+              rolling ? 'ks-anim-shake' : '',
+            ].join(' ')}
             draggable={false}
           />
         </button>

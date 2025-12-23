@@ -17,7 +17,7 @@ export function PageShell({
 }: PageShellProps) {
   return (
     <div className="flex min-h-full flex-col">
-      <div className="flex-1 px-4 pt-4 pb-6">
+      <div className="flex-1 pt-4 pb-6">
         <header className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <div className="space-y-1 text-left">

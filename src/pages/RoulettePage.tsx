@@ -10,7 +10,7 @@ export function RoulettePage() {
         <div className="space-y-4">
             <section>
                 <h2 className="text-xl font-bold mb-1">ムードルーレット</h2>
-                <p className="text-sm text-gary-600">
+                <p className="text-sm text-gray-600">
                     このターン全体の雰囲気(ムード)を決めます。
                 </p>
             </section>

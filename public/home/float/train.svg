@@ -1,13 +1,133 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
   <defs>
-    <linearGradient id="t" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#60A5FA"/>
-      <stop offset="1" stop-color="#34D399"/>
+    <!-- 車体（環状線グリーン寄り） -->
+    <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22C55E" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#16A34A" stop-opacity="0.96"/>
     </linearGradient>
+
+    <!-- 金属影 -->
+    <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CBD5E1"/>
+      <stop offset="1" stop-color="#94A3B8"/>
+    </linearGradient>
+
+    <!-- ガラス -->
+    <linearGradient id="gGlass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E5F4FF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#CBD5E1" stop-opacity="0.85"/>
+    </linearGradient>
+
+    <!-- 弱めグロー -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+      <feColorMatrix in="b" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.18 0" result="g"/>
+      <feMerge>
+        <feMergeNode in="g"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <rect x="18" y="18" rx="14" ry="14" width="60" height="56" fill="url(#t)" opacity="0.95"/>
-  <rect x="26" y="28" rx="8" width="44" height="20" fill="#E0F2FE" opacity="0.9"/>
-  <circle cx="34" cy="64" r="6" fill="#111827" opacity="0.75"/>
-  <circle cx="62" cy="64" r="6" fill="#111827" opacity="0.75"/>
-  <rect x="30" y="52" width="36" height="6" rx="3" fill="#111827" opacity="0.35"/>
+
+  <g filter="url(#softGlow)">
+    <!-- 車体 -->
+    <rect
+      x="44"
+      y="44"
+      width="168"
+      height="148"
+      rx="28"
+      fill="url(#gBody)"
+      stroke="#0F172A"
+      stroke-opacity="0.35"
+      stroke-width="5"
+    />
+
+    <!-- 屋根 -->
+    <rect
+      x="56"
+      y="38"
+      width="144"
+      height="18"
+      rx="9"
+      fill="url(#gMetal)"
+      opacity="0.9"
+    />
+
+    <!-- 行先表示 -->
+    <rect
+      x="84"
+      y="66"
+      width="88"
+      height="20"
+      rx="6"
+      fill="#0F172A"
+      opacity="0.85"
+    />
+    <rect
+      x="90"
+      y="70"
+      width="76"
+      height="12"
+      rx="4"
+      fill="#22C55E"
+      opacity="0.9"
+    />
+
+    <!-- 前面ガラス -->
+    <rect
+      x="72"
+      y="92"
+      width="112"
+      height="44"
+      rx="10"
+      fill="url(#gGlass)"
+      stroke="#0F172A"
+      stroke-opacity="0.25"
+      stroke-width="4"
+    />
+
+    <!-- 縦ピラー -->
+    <rect x="124" y="92" width="8" height="44" fill="#0F172A" fill-opacity="0.25"/>
+
+    <!-- ヘッドライト -->
+    <circle cx="76" cy="156" r="6" fill="#FACC15"/>
+    <circle cx="180" cy="156" r="6" fill="#FACC15"/>
+
+    <!-- テールライト -->
+    <circle cx="64" cy="156" r="3" fill="#EF4444"/>
+    <circle cx="192" cy="156" r="3" fill="#EF4444"/>
+
+    <!-- バンパー -->
+    <rect
+      x="72"
+      y="168"
+      width="112"
+      height="6"
+      rx="3"
+      fill="#0F172A"
+      fill-opacity="0.25"
+    />
+
+    <!-- 連結器 -->
+    <rect
+      x="118"
+      y="178"
+      width="20"
+      height="10"
+      rx="3"
+      fill="#0F172A"
+      fill-opacity="0.45"
+    />
+
+    <!-- 台車 -->
+    <circle cx="92" cy="200" r="11" fill="#0F172A" fill-opacity="0.55"/>
+    <circle cx="164" cy="200" r="11" fill="#0F172A" fill-opacity="0.55"/>
+    <circle cx="92" cy="200" r="4" fill="#E5E7EB"/>
+    <circle cx="164" cy="200" r="4" fill="#E5E7EB"/>
+  </g>
 </svg>

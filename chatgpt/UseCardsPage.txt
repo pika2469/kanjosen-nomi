@@ -175,7 +175,7 @@ export default function UseCardsPage() {
     <PageShell
       step="STEP 6 / Cards"
       title="カードを使おう"
-      description="手札からカードを選んで使用します（任意）"
+      description="処理中プレイヤーの手札からカードを選んで使用します。"
       rightBadgeText={activePlayer ? `代表: ${activePlayer.name}` : undefined}
     >
       <div className="flex min-h-full flex-col gap-3">
