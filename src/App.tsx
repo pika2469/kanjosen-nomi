@@ -18,9 +18,14 @@ import UseCardsPage from '@/pages/UseCardsPage'
 import ProgressPage from '@/pages/ProgressPage'
 import { ResultPage } from '@/pages/ResultPage'
 
+// ミニゲームページ
+import { MiniGameHubPage } from '@/pages/MiniGameHubPage'
+import ReactionTapPage from '@/pages/minigames/ReactionTapPage'
+import MashPage from '@/pages/minigames/MashPage'
+import FakeButtonPage from '@/pages/minigames/FakeButtonPage'
+
 // その他ページ
 import { SettingsPage } from '@/pages/SettingsPage'
-import { MiniGameHubPage } from '@/pages/MiniGameHubPage'
 import { TurnPage } from '@/pages/TurnPage' // デバッグページ
 
 // 未使用ページ
@@ -65,6 +70,18 @@ export default function App() {
 
     case 'minigame':
       content = <MiniGameHubPage />
+      break
+    
+    case 'minigame_reaction':
+      content = <ReactionTapPage />
+      break
+      
+    case 'minigame_mash':
+      content = <MashPage />
+      break
+
+    case 'minigame_fake':
+      content = <FakeButtonPage />
       break
 
     case 'passives':

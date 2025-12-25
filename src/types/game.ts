@@ -155,6 +155,9 @@ export type Page =
     | 'cardHand'
     | 'settings'        // 設定
     | 'minigame'        // ミニゲームページ
+    | 'minigame_reaction' // 反射神経ゲーム
+    | 'minigame_mash'  // 連打チャレンジ
+    | 'minigame_fake'   // フェイクボタンゲーム
     | 'passives'
     | 'mood'            // 【1】ムードルーレット
     | 'station'         // 【2】駅決定
