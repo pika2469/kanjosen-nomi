@@ -16,9 +16,8 @@ function pickUniqueIndices(count: number, maxExclusive: number): number[] {
 }
 
 export default function FakeButtonPage() {
-  const { setPage, game, players, ui } = useGameStore()
+  const { setPage, game, players } = useGameStore()
   const activePlayer = players[game.activePlayerIndex] ?? null
-  const fromShoubu = ui.minigameContext?.origin === 'atk_shoubu_time'
 
   const GRID = 16 // 4x4
   const [phase, setPhase] = useState<Phase>('idle')
@@ -169,11 +168,9 @@ export default function FakeButtonPage() {
             <button
               type="button"
               className="rounded-full bg-slate-900/10 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-900/15"
-              onClick={() => 
-                fromShoubu ? setPage('minigame_shoubu_return') : setPage('minigame')
-              }
+              onClick={() => setPage('minigame')}
             >
-              {fromShoubu ? '環状線飲みへ戻る' : 'Hubへ' }
+              Hubへ
             </button>
           </div>
 
@@ -345,12 +342,7 @@ export default function FakeButtonPage() {
           `}</style>
         </section>
 
-        <StickyNextBar 
-          label={fromShoubu ? '環状線飲みに戻る' : "Hubへ戻る"} 
-          onNext={() => 
-            fromShoubu ? setPage('minigame_shoubu_return') : setPage('minigame')
-            } 
-          />
+        <StickyNextBar label="Hubへ戻る" onNext={() => setPage('minigame')} />
       </div>
     </PageShell>
   )

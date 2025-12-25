@@ -10,9 +10,8 @@ function randInt(min: number, max: number) {
 }
 
 export default function ReactionTapPage() {
-  const { setPage, game, players, ui } = useGameStore()
+  const { setPage, game, players } = useGameStore()
   const activePlayer = players[game.activePlayerIndex] ?? null
-  const fromShoubu = ui.minigameContext?.origin === 'atk_shoubu_time'
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [resultMs, setResultMs] = useState<number | null>(null)
@@ -92,11 +91,9 @@ export default function ReactionTapPage() {
             <button
               type="button"
               className="rounded-full bg-slate-900/10 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-900/15"
-              onClick={() => 
-                fromShoubu ? setPage('minigame_shoubu_return') : setPage('minigame')
-              }
+              onClick={() => setPage('minigame')}
             >
-              {fromShoubu ? '環状線飲みへ戻る' : 'Hubへ' }
+              Hubへ
             </button>
           </div>
 
@@ -160,10 +157,8 @@ export default function ReactionTapPage() {
         </section>
 
         <StickyNextBar
-          label={fromShoubu ? '環状線飲みに戻る' : "Hubへ戻る"} 
-          onNext={() => 
-            fromShoubu ? setPage('minigame_shoubu_return') : setPage('minigame')
-          }
+          label="Hubへ戻る"
+          onNext={() => setPage('minigame')}
         />
       </div>
     </PageShell>

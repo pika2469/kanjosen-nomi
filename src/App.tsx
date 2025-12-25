@@ -20,6 +20,7 @@ import { ResultPage } from '@/pages/ResultPage'
 
 // ミニゲームページ
 import { MiniGameHubPage } from '@/pages/MiniGameHubPage'
+import { MiniGameShoubuReturnPage } from '@/pages/minigames/MiniGameShoubuReturnPage'
 import ReactionTapPage from '@/pages/minigames/ReactionTapPage'
 import MashPage from '@/pages/minigames/MashPage'
 import FakeButtonPage from '@/pages/minigames/FakeButtonPage'
@@ -72,6 +73,10 @@ export default function App() {
       content = <MiniGameHubPage />
       break
     
+    case 'minigame_shoubu_return':
+      content = <MiniGameShoubuReturnPage />
+      break
+
     case 'minigame_reaction':
       content = <ReactionTapPage />
       break

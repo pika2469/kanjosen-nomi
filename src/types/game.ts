@@ -155,6 +155,7 @@ export type Page =
     | 'cardHand'
     | 'settings'        // 設定
     | 'minigame'        // ミニゲームページ
+    | 'minigame_shoubu_return' // 勝負タイムカード使用専用：敗者選択→カード使用へ戻る
     | 'minigame_reaction' // 反射神経ゲーム
     | 'minigame_mash'  // 連打チャレンジ
     | 'minigame_fake'   // フェイクボタンゲーム
@@ -170,6 +171,10 @@ export type Page =
 
 export type UiState = {
     currentPage: Page
+    minigameContext: null | {
+        origin: 'atk_shoubu_time'
+        returnPage: 'useCards'
+    }
 }
 
 // 各プレイヤーの杯数結果
